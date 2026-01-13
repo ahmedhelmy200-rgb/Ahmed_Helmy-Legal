@@ -22,66 +22,70 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab }) => {
   ];
 
   return (
-    <div className="h-screen w-72 bg-[#1a1a2e] text-white flex flex-col fixed right-0 top-0 shadow-2xl z-20 border-l border-slate-800">
-      <div className="p-10 flex flex-col items-center gap-4 border-b border-slate-800/50">
-        <div className="relative">
-           <div className="w-20 h-20 bg-gradient-to-tr from-[#d4af37] to-[#b8960c] rounded-2xl flex items-center justify-center shadow-2xl transform rotate-3 hover:rotate-0 transition-transform duration-500">
-              <svg viewBox="0 0 24 24" className="w-12 h-12 text-[#1a1a2e]" fill="currentColor">
-                <path d="M12 2L4 9h3v12h10V9h3L12 2zm0 5c1.1 0 2 .9 2 2s-.9 2-2 2-2-.9-2-2 .9-2 2-2zM9 19v-2h6v2H9z" />
-              </svg>
+    <div className="h-screen w-72 bg-[#0f172a] text-white flex flex-col fixed right-0 top-0 shadow-2xl z-20 border-l border-white/5 relative overflow-hidden">
+      {/* Background Glow */}
+      <div className="absolute top-0 right-0 w-64 h-64 bg-[#d4af37] opacity-5 rounded-full -mr-32 -mt-32 blur-3xl pointer-events-none"></div>
+
+      <div className="p-10 flex flex-col items-center gap-6 border-b border-white/5 relative z-10">
+        <div className="relative group cursor-pointer">
+           <div className="w-24 h-24 bg-gradient-to-br from-[#1e293b] to-[#0f172a] rounded-3xl flex items-center justify-center shadow-2xl border border-white/5 group-hover:border-[#d4af37]/30 transition-all duration-500 group-hover:rotate-3 group-hover:scale-105 p-5">
+              <ICONS.Logo />
            </div>
-           <div className="absolute -bottom-1 -right-1 w-6 h-6 bg-white rounded-full flex items-center justify-center shadow-lg">
-              <div className="w-4 h-4 bg-[#d4af37] rounded-full"></div>
+           <div className="absolute -bottom-2 -right-2 w-8 h-8 bg-gradient-to-tr from-[#d4af37] to-[#fcd34d] rounded-full flex items-center justify-center shadow-lg border-2 border-[#0f172a]">
+              <svg className="w-4 h-4 text-[#0f172a]" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd"></path></svg>
            </div>
         </div>
         
-        <div className="text-center mt-2">
-          <h1 className="text-xl font-black text-[#d4af37] leading-tight tracking-tight">أحمد حلمي</h1>
-          <p className="text-[10px] text-slate-300 uppercase tracking-[0.2em] font-bold mt-1">Ahmed Helmy</p>
-          <div className="h-[1px] w-12 bg-[#d4af37] mx-auto my-3 opacity-50"></div>
-          <p className="text-[9px] text-slate-400 font-semibold">للاستشارات القانونية</p>
-          <p className="text-[8px] text-amber-500/70 mt-1">Al Ain, Abu Dhabi</p>
+        <div className="text-center">
+          <h1 className="text-2xl font-black text-transparent bg-clip-text bg-gradient-to-r from-[#d4af37] to-[#fcd34d] leading-tight tracking-tight mb-1">أحمد حلمي</h1>
+          <p className="text-[10px] text-slate-400 uppercase tracking-[0.3em] font-bold">Legal Consultations</p>
+          <div className="flex items-center justify-center gap-2 mt-3 text-[9px] text-slate-500 font-semibold bg-white/5 py-1 px-3 rounded-full">
+            <span>Al Ain</span>
+            <span className="w-1 h-1 rounded-full bg-[#d4af37]"></span>
+            <span>Abu Dhabi</span>
+          </div>
         </div>
       </div>
 
-      <nav className="flex-1 px-5 py-8 overflow-y-auto custom-scroll">
-        <ul className="space-y-3">
+      <nav className="flex-1 px-4 py-8 overflow-y-auto custom-scroll relative z-10">
+        <ul className="space-y-2">
           {menuItems.map((item) => (
             <li key={item.id}>
               <button
                 onClick={() => setActiveTab(item.id)}
-                className={`w-full flex items-center gap-4 px-5 py-3.5 rounded-2xl transition-all duration-300 group ${
+                className={`w-full flex items-center gap-4 px-5 py-4 rounded-2xl transition-all duration-300 group relative overflow-hidden ${
                   activeTab === item.id
-                    ? 'bg-gradient-to-r from-[#d4af37] to-[#b8960c] text-[#1a1a2e] shadow-xl shadow-amber-600/10 font-black scale-[1.02]'
-                    : 'text-slate-400 hover:bg-slate-800/40 hover:text-white'
+                    ? 'text-[#0f172a] font-black shadow-xl shadow-[#d4af37]/10'
+                    : 'text-slate-400 hover:text-white hover:bg-white/5'
                 }`}
               >
-                <span className={`${activeTab === item.id ? 'text-[#1a1a2e]' : 'text-[#d4af37] group-hover:scale-110 transition-transform'}`}>
+                {activeTab === item.id && (
+                  <div className="absolute inset-0 bg-gradient-to-r from-[#d4af37] to-[#fcd34d] opacity-100"></div>
+                )}
+                <span className={`relative z-10 transition-transform duration-300 ${activeTab === item.id ? 'scale-110' : 'group-hover:scale-110 text-[#d4af37]'}`}>
                   <item.icon />
                 </span>
-                <span className="text-sm">{item.label}</span>
+                <span className="relative z-10 text-sm tracking-wide">{item.label}</span>
+                {activeTab === item.id && (
+                  <div className="absolute right-0 top-1/2 -translate-y-1/2 w-1 h-8 bg-white/20 rounded-l-full"></div>
+                )}
               </button>
             </li>
           ))}
         </ul>
       </nav>
 
-      <div className="p-8 border-t border-slate-800/50 bg-[#16213e]/50">
-        <div className="flex flex-col gap-4">
-           <div className="bg-slate-900/50 rounded-2xl p-4 border border-slate-700/50">
-              <div className="flex items-center gap-3 mb-2">
-                <div className="w-8 h-8 rounded-full bg-[#d4af37] flex items-center justify-center text-[#1a1a2e] font-black text-xs shadow-inner">أ ح</div>
-                <div>
-                  <p className="text-[10px] font-black text-white">المستشار أحمد حلمي</p>
-                  <p className="text-[8px] text-slate-500">المدير العام</p>
-                </div>
-              </div>
-              <div className="flex items-center gap-2 text-[10px] text-[#d4af37] font-bold">
-                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"></path></svg>
-                <span>0544144149</span>
-              </div>
+      <div className="p-6 border-t border-white/5 bg-[#0b1120] relative z-10">
+        <div className="bg-[#1e293b]/50 backdrop-blur-md rounded-2xl p-4 border border-white/5 hover:border-[#d4af37]/20 transition-colors cursor-pointer group">
+           <div className="flex items-center gap-3">
+             <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#d4af37] to-[#b45309] flex items-center justify-center text-[#0f172a] font-black text-sm shadow-lg group-hover:scale-105 transition-transform">
+                أ ح
+             </div>
+             <div>
+               <p className="text-[11px] font-bold text-white group-hover:text-[#d4af37] transition-colors">المستشار أحمد حلمي</p>
+               <p className="text-[9px] text-slate-500 font-mono mt-0.5">0544144149</p>
+             </div>
            </div>
-           <p className="text-[8px] text-slate-600 text-center uppercase tracking-widest font-bold">LegalMaster UAE v2.5</p>
         </div>
       </div>
     </div>

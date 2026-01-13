@@ -10,17 +10,40 @@ export const getLegalAdvice = async (prompt: string) => {
       model: "gemini-3-flash-preview",
       contents: prompt,
       config: {
-        systemInstruction: `أنت المساعد القانوني الذكي المخصص لمكتب "أحمد حلمي للاستشارات القانونية" في مدينة العين، دولة الإمارات العربية المتحدة. 
-        تقدم استشارات دقيقة بناءً على التشريعات الإماراتية الحديثة.
-        تحدث دائماً برصانة ومهنية قانونية عالية. 
-        عند صياغة المذكرات، التزم بالنماذج المعتمدة في دائرة القضاء - أبوظبي ومحاكم العين.
-        اجب دائماً باللغة العربية.`,
+        systemInstruction: `أنت المساعد القانوني الذكي المخصص لمكتب "أحمد حلمي للاستشارات القانونية". 
+        مهمتك هي تقديم استشارات دقيقة بناءً على قوانين دولة الإمارات.
+        تحدث بمهنية واختصار مفيد.`,
       },
     });
-    // Accessing .text property directly.
     return response.text;
   } catch (error) {
     console.error("Gemini API Error:", error);
-    return "عذراً، حدث خطأ أثناء معالجة طلبك القانوني. يرجى المحاولة مرة أخرى لاحقاً.";
+    return "عذراً، حدث خطأ في الاتصال بالمساعد الذكي.";
+  }
+};
+
+export const analyzeCaseStrategy = async (caseTitle: string, court: string, status: string, opponent: string) => {
+  try {
+    const prompt = `بصفتك مستشاراً قانونياً خبيراً في الإمارات، قم بتحليل القضية التالية:
+    - العنوان: ${caseTitle}
+    - المحكمة: ${court}
+    - الحالة الحالية: ${status}
+    - الخصم: ${opponent}
+
+    المطلوب تقديم تقرير استراتيجي موجز يحتوي على:
+    1. تقييم مبدئي لموقف القضية (نقاط القوة).
+    2. 3 خطوات قانونية استراتيجية يُنصح باتخاذها فوراً.
+    3. قائمة بأهم 3 مستندات يجب التأكد من وجودها في الملف.
+    
+    نسق الإجابة بتنسيق HTML بسيط (استخدم <ul> و <li> و <strong>) ليكون قابلاً للعرض داخل التطبيق، دون كتابة مقدمات طويلة.`;
+
+    const response = await ai.models.generateContent({
+      model: "gemini-3-flash-preview",
+      contents: prompt,
+    });
+    return response.text;
+  } catch (error) {
+    console.error("Analysis Error:", error);
+    return "لا يمكن إجراء التحليل الاستراتيجي حالياً.";
   }
 };

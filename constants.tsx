@@ -2,24 +2,58 @@
 import React from 'react';
 
 export const COLORS = {
-  primary: '#1a1a2e', // الكحلي الداكن من الصور
-  secondary: '#d4af37', // الذهبي الملكي من الصور
-  accent: '#16213e',
-  background: '#f4f7f6',
+  primary: '#0f172a', // كحلي عميق جداً
+  secondary: '#d4af37', // ذهبي ملكي
+  accent: '#1e293b',
+  background: '#f8fafc',
   white: '#ffffff',
-  success: '#10b981',
-  error: '#ef4444',
-  goldGradient: 'linear-gradient(135deg, #d4af37 0%, #b8960c 100%)',
-  navyGradient: 'linear-gradient(135deg, #1a1a2e 0%, #16213e 100%)'
+  success: '#059669',
+  error: '#dc2626',
+  goldGradient: 'linear-gradient(135deg, #d4af37 0%, #fcd34d 50%, #b45309 100%)',
+  glass: 'backdrop-blur-xl bg-white/70 border border-white/20 shadow-xl',
 };
 
 export const ICONS = {
-  // تصميم أيقونة يحاكي الشعار في الصور (الميزان)
+  // الشعار المحدث: ميزان العدالة مع إكليل الغار (مطابق للهوية البصرية)
   Logo: () => (
-    <svg viewBox="0 0 24 24" className="w-12 h-12 text-[#d4af37]" fill="currentColor">
-      <path d="M12 3L2 12h3v8h14v-8h3L12 3zm0 4.5c1.38 0 2.5 1.12 2.5 2.5s-1.12 2.5-2.5 2.5-2.5-1.12-2.5-2.5 1.12-2.5 2.5-2.5zM9 18h6v-2h-6v2z" />
-      <circle cx="12" cy="11" r="2" fill="none" stroke="currentColor" strokeWidth="1"/>
-      <path d="M7 11h10M12 7v8" stroke="currentColor" strokeWidth="1" strokeLinecap="round"/>
+    <svg viewBox="0 0 100 100" className="w-full h-full text-[#d4af37]" fill="none" stroke="currentColor" strokeWidth="2">
+      <defs>
+        <linearGradient id="goldGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stopColor="#d4af37" />
+          <stop offset="50%" stopColor="#fcd34d" />
+          <stop offset="100%" stopColor="#b45309" />
+        </linearGradient>
+      </defs>
+      
+      {/* العمود المركزي والقاعدة */}
+      <path d="M50 25 V75" strokeLinecap="round" strokeWidth="3" />
+      <path d="M40 75 H60" strokeLinecap="round" strokeWidth="3" />
+      <path d="M45 72 H55" strokeLinecap="round" strokeWidth="1" />
+
+      {/* العارضة الأفقية */}
+      <path d="M25 35 H75" strokeLinecap="round" strokeWidth="2.5" />
+      
+      {/* السلاسل والكفات */}
+      {/* اليسار */}
+      <path d="M25 35 L18 55" strokeWidth="1" />
+      <path d="M25 35 L32 55" strokeWidth="1" />
+      <path d="M18 55 Q25 65 32 55 Z" fill="url(#goldGrad)" fillOpacity="0.2" />
+      
+      {/* اليمين */}
+      <path d="M75 35 L68 55" strokeWidth="1" />
+      <path d="M75 35 L82 55" strokeWidth="1" />
+      <path d="M68 55 Q75 65 82 55 Z" fill="url(#goldGrad)" fillOpacity="0.2" />
+
+      {/* الرأس */}
+      <circle cx="50" cy="22" r="3" fill="currentColor" />
+
+      {/* إكليل الغار (مبسط) */}
+      <path d="M50 85 C 20 85, 10 60, 10 40" strokeLinecap="round" strokeDasharray="1 3" strokeWidth="3" opacity="0.6" />
+      <path d="M50 85 C 80 85, 90 60, 90 40" strokeLinecap="round" strokeDasharray="1 3" strokeWidth="3" opacity="0.6" />
+      
+      {/* أوراق الغار (تمثيل تجريدي) */}
+      <path d="M50 80 Q 30 80 20 50" strokeWidth="0.5" opacity="0.4" />
+      <path d="M50 80 Q 70 80 80 50" strokeWidth="0.5" opacity="0.4" />
     </svg>
   ),
   Dashboard: () => (
@@ -39,7 +73,7 @@ export const ICONS = {
   ),
   AI: () => (
     <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" />
     </svg>
   ),
   Law: () => (

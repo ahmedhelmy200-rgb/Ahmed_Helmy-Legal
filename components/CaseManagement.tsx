@@ -1,6 +1,7 @@
 
 import React, { useState } from 'react';
 import { LegalCase, CaseStatus, CourtType, CaseDocument, Client } from '../types';
+import { analyzeCaseStrategy } from '../services/geminiService';
 
 interface CaseManagementProps {
   cases: LegalCase[];
@@ -17,6 +18,14 @@ const CaseManagement: React.FC<CaseManagementProps> = ({ cases, clients, onAddCa
   const [filterStatus, setFilterStatus] = useState<string>('all');
   const [searchTerm, setSearchTerm] = useState('');
   const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
+
+  // Saved Filters State
+  const [savedFilters, setSavedFilters] = useState<{id: string, name: string, court: string, status: string}[]>([]);
+  const [newFilterName, setNewFilterName] = useState('');
+
+  // AI Analysis State
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [analysisResult, setAnalysisResult] = useState<string | null>(null);
 
   // New Case Form State
   const [showNewClientForm, setShowNewClientForm] = useState(false);
@@ -39,6 +48,36 @@ const CaseManagement: React.FC<CaseManagementProps> = ({ cases, clients, onAddCa
     dateOfBirth: '',
     type: 'Individual' as 'Individual' | 'Corporate'
   });
+
+  const handleAnalyze = async () => {
+    if (!selectedCase) return;
+    setIsAnalyzing(true);
+    setAnalysisResult(null);
+    const result = await analyzeCaseStrategy(selectedCase.title, selectedCase.court, selectedCase.status, selectedCase.opponentName);
+    setAnalysisResult(result);
+    setIsAnalyzing(false);
+  };
+
+  const handleSaveFilter = () => {
+    if (!newFilterName.trim()) return;
+    const newFilter = {
+      id: Math.random().toString(36).substr(2, 9),
+      name: newFilterName,
+      court: filterCourt,
+      status: filterStatus
+    };
+    setSavedFilters([...savedFilters, newFilter]);
+    setNewFilterName('');
+  };
+
+  const applySavedFilter = (filter: {court: string, status: string}) => {
+    setFilterCourt(filter.court);
+    setFilterStatus(filter.status);
+  };
+
+  const deleteSavedFilter = (id: string) => {
+    setSavedFilters(savedFilters.filter(f => f.id !== id));
+  };
 
   const handleAddCase = (e: React.FormEvent) => {
     e.preventDefault();
@@ -147,34 +186,76 @@ const CaseManagement: React.FC<CaseManagementProps> = ({ cases, clients, onAddCa
           </div>
 
           {showAdvancedFilters && (
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-4 border-t border-slate-100 animate-in fade-in slide-in-from-top-2 duration-200">
-              <div className="space-y-1.5">
-                <label className="text-[11px] font-bold text-slate-500 mr-1 uppercase tracking-wider">المحكمة</label>
-                <select 
-                  className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500"
-                  value={filterCourt}
-                  // Fix: changed target.value to e.target.value to resolve "Cannot find name 'target'"
-                  onChange={(e) => setFilterCourt(e.target.value)}
-                >
-                  <option value="all">كل المحاكم</option>
-                  {Object.values(CourtType).map(court => (
-                    <option key={court} value={court}>{court}</option>
-                  ))}
-                </select>
+            <div className="pt-4 border-t border-slate-100 animate-in fade-in slide-in-from-top-2 duration-200 space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="space-y-1.5">
+                  <label className="text-[11px] font-bold text-slate-500 mr-1 uppercase tracking-wider">المحكمة</label>
+                  <select 
+                    className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500"
+                    value={filterCourt}
+                    onChange={(e) => setFilterCourt(e.target.value)}
+                  >
+                    <option value="all">كل المحاكم</option>
+                    {Object.values(CourtType).map(court => (
+                      <option key={court} value={court}>{court}</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-[11px] font-bold text-slate-500 mr-1 uppercase tracking-wider">الحالة</label>
+                  <select 
+                    className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500"
+                    value={filterStatus}
+                    onChange={(e) => setFilterStatus(e.target.value)}
+                  >
+                    <option value="all">كل الحالات</option>
+                    {Object.values(CaseStatus).map(status => (
+                      <option key={status} value={status}>{status}</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="space-y-1.5 flex flex-col justify-end">
+                    <label className="text-[11px] font-bold text-slate-500 mr-1 uppercase tracking-wider">حفظ التصفية الحالية</label>
+                    <div className="flex gap-2">
+                        <input
+                            type="text"
+                            placeholder="اسم التصفية..."
+                            className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500"
+                            value={newFilterName}
+                            onChange={(e) => setNewFilterName(e.target.value)}
+                        />
+                        <button 
+                            onClick={handleSaveFilter}
+                            disabled={!newFilterName.trim()}
+                            className="px-4 py-2 bg-slate-800 text-white rounded-lg text-sm font-bold hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                        >
+                            حفظ
+                        </button>
+                    </div>
+                </div>
               </div>
-              <div className="space-y-1.5">
-                <label className="text-[11px] font-bold text-slate-500 mr-1 uppercase tracking-wider">الحالة</label>
-                <select 
-                  className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500"
-                  value={filterStatus}
-                  onChange={(e) => setFilterStatus(e.target.value)}
-                >
-                  <option value="all">كل الحالات</option>
-                  {Object.values(CaseStatus).map(status => (
-                    <option key={status} value={status}>{status}</option>
-                  ))}
-                </select>
-              </div>
+              
+              {savedFilters.length > 0 && (
+                  <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-slate-50">
+                      <span className="text-[10px] font-black text-slate-400 ml-2">الفلاتر المحفوظة:</span>
+                      {savedFilters.map(filter => (
+                          <div key={filter.id} className="group flex items-center gap-2 bg-amber-50 border border-amber-100 px-3 py-1.5 rounded-lg hover:border-amber-300 transition-all cursor-pointer">
+                              <span 
+                                onClick={() => applySavedFilter(filter)}
+                                className="text-xs font-bold text-amber-800"
+                              >
+                                {filter.name}
+                              </span>
+                              <button 
+                                onClick={(e) => { e.stopPropagation(); deleteSavedFilter(filter.id); }}
+                                className="text-amber-400 hover:text-amber-700 opacity-50 group-hover:opacity-100 transition-opacity"
+                              >
+                                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                              </button>
+                          </div>
+                      ))}
+                  </div>
+              )}
             </div>
           )}
         </div>
@@ -223,7 +304,10 @@ const CaseManagement: React.FC<CaseManagementProps> = ({ cases, clients, onAddCa
                     </td>
                     <td className="px-6 py-4 text-center">
                       <button 
-                        onClick={() => setSelectedCase(c)}
+                        onClick={() => {
+                          setSelectedCase(c);
+                          setAnalysisResult(null);
+                        }}
                         className="bg-[#1a1a2e] text-white px-4 py-1.5 rounded-lg text-xs font-bold hover:bg-slate-800 transition-all"
                       >
                         التفاصيل
@@ -252,20 +336,62 @@ const CaseManagement: React.FC<CaseManagementProps> = ({ cases, clients, onAddCa
             </div>
             
             <div className="flex-1 overflow-y-auto p-8 custom-scroll space-y-8">
+              
+              {/* AI Strategic Analysis Section - The Genius Feature */}
+              <section className="bg-gradient-to-br from-[#1a1a2e] to-[#16213e] rounded-2xl p-6 text-white shadow-xl relative overflow-hidden group">
+                 <div className="absolute top-0 right-0 w-32 h-32 bg-[#d4af37] opacity-10 rounded-full -mr-16 -mt-16 blur-2xl group-hover:opacity-20 transition-opacity"></div>
+                 <div className="relative z-10">
+                    <div className="flex justify-between items-center mb-4">
+                       <h4 className="text-lg font-black text-[#d4af37] flex items-center gap-2">
+                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
+                          التحليل الاستراتيجي الذكي
+                       </h4>
+                       <button 
+                         onClick={handleAnalyze}
+                         disabled={isAnalyzing}
+                         className="px-4 py-2 bg-white/10 hover:bg-white/20 rounded-lg text-xs font-bold transition-all disabled:opacity-50"
+                       >
+                         {isAnalyzing ? 'جاري التحليل...' : 'تحديث التحليل'}
+                       </button>
+                    </div>
+                    
+                    {!analysisResult && !isAnalyzing && (
+                       <div className="text-center py-6">
+                          <p className="text-sm text-slate-300 mb-4">احصل على رؤية استراتيجية فورية للقضية باستخدام الذكاء الاصطناعي</p>
+                          <button onClick={handleAnalyze} className="bg-[#d4af37] text-[#1a1a2e] px-6 py-2 rounded-xl font-bold hover:scale-105 transition-transform">
+                             بدء التحليل
+                          </button>
+                       </div>
+                    )}
+
+                    {isAnalyzing && (
+                       <div className="space-y-3 animate-pulse">
+                          <div className="h-2 bg-white/10 rounded w-3/4"></div>
+                          <div className="h-2 bg-white/10 rounded w-full"></div>
+                          <div className="h-2 bg-white/10 rounded w-5/6"></div>
+                       </div>
+                    )}
+
+                    {analysisResult && (
+                       <div className="prose prose-invert prose-sm max-w-none text-slate-200 leading-relaxed" dangerouslySetInnerHTML={{ __html: analysisResult }} />
+                    )}
+                 </div>
+              </section>
+
               <section>
                 <h4 className="text-xs font-bold text-[#d4af37] uppercase tracking-wider mb-4">الوضع المالي للقضية</h4>
-                <div className="bg-[#1a1a2e] p-6 rounded-2xl text-white">
+                <div className="bg-white border border-slate-100 p-6 rounded-2xl shadow-sm">
                    <div className="flex justify-between items-end mb-4">
                       <div>
                          <p className="text-[10px] text-slate-400">إجمالي الأتعاب</p>
-                         <h5 className="text-xl font-black">{selectedCase.totalFee?.toLocaleString() || 0} د.إ</h5>
+                         <h5 className="text-xl font-black text-slate-800">{selectedCase.totalFee?.toLocaleString() || 0} د.إ</h5>
                       </div>
                       <div className="text-left">
                          <p className="text-[10px] text-slate-400">المبلغ المحصل</p>
-                         <h5 className="text-xl font-black text-green-400">{selectedCase.paidAmount?.toLocaleString() || 0} د.إ</h5>
+                         <h5 className="text-xl font-black text-green-600">{selectedCase.paidAmount?.toLocaleString() || 0} د.إ</h5>
                       </div>
                    </div>
-                   <div className="w-full h-2 bg-white/10 rounded-full overflow-hidden mb-2">
+                   <div className="w-full h-2 bg-slate-100 rounded-full overflow-hidden mb-2">
                       <div 
                         className="h-full bg-green-500 transition-all duration-500" 
                         style={{ width: `${selectedCase.totalFee > 0 ? (selectedCase.paidAmount / selectedCase.totalFee) * 100 : 0}%` }}
