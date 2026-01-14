@@ -1,148 +1,142 @@
 
 import React, { useState } from 'react';
-import { LegalCase, CaseStatus, CourtType, CaseDocument, Client } from '../types';
+import { LegalCase, CaseStatus, CaseCategory, Client, UserRole, CaseComment, CaseActivity } from '../types';
 import { analyzeCaseStrategy } from '../services/geminiService';
 
 interface CaseManagementProps {
   cases: LegalCase[];
   clients: Client[];
+  userRole: UserRole;
   onAddCase: (newCase: LegalCase) => void;
   onUpdateCase: (updatedCase: LegalCase) => void;
-  onAddClient: (newClient: Client) => void;
 }
 
-const CaseManagement: React.FC<CaseManagementProps> = ({ cases, clients, onAddCase, onUpdateCase, onAddClient }) => {
+const CaseManagement: React.FC<CaseManagementProps> = ({ cases, clients, userRole, onAddCase, onUpdateCase }) => {
   const [showAddModal, setShowAddModal] = useState(false);
   const [selectedCase, setSelectedCase] = useState<LegalCase | null>(null);
-  const [filterCourt, setFilterCourt] = useState<string>('all');
-  const [filterStatus, setFilterStatus] = useState<string>('all');
-  const [searchTerm, setSearchTerm] = useState('');
-  const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
-
-  // Saved Filters State
-  const [savedFilters, setSavedFilters] = useState<{id: string, name: string, court: string, status: string}[]>([]);
-  const [newFilterName, setNewFilterName] = useState('');
-
-  // AI Analysis State
+  const [activeDetailTab, setActiveDetailTab] = useState<'details' | 'comments' | 'activities'>('details');
+  const [commentInput, setCommentInput] = useState('');
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [analysisResult, setAnalysisResult] = useState<string | null>(null);
 
-  // New Case Form State
-  const [showNewClientForm, setShowNewClientForm] = useState(false);
   const [newCaseForm, setNewCaseForm] = useState<Partial<LegalCase>>({
+    category: CaseCategory.CIVIL,
     status: CaseStatus.ACTIVE,
-    court: CourtType.DUBAI,
-    clientId: '',
-    documents: [],
     totalFee: 0,
-    paidAmount: 0,
-    opponentName: '',
-    nextHearingDate: ''
+    paidAmount: 0
   });
-  const [newClientFields, setNewClientFields] = useState({
-    name: '',
-    phone: '',
-    email: '',
-    emiratesId: '',
-    address: '',
-    dateOfBirth: '',
-    type: 'Individual' as 'Individual' | 'Corporate'
-  });
+
+  // Helper to log activities
+  const logActivity = (currentCase: LegalCase, type: CaseActivity['type'], description: string): LegalCase => {
+    const activity: CaseActivity = {
+      id: Math.random().toString(36).substr(2, 9),
+      type,
+      description,
+      userRole,
+      userName: userRole === 'admin' ? 'إدارة المكتب' : currentCase.clientName,
+      timestamp: new Date().toLocaleDateString('ar-AE', { 
+        year: 'numeric', month: 'short', day: 'numeric', 
+        hour: '2-digit', minute: '2-digit' 
+      })
+    };
+    return {
+      ...currentCase,
+      activities: [activity, ...(currentCase.activities || [])]
+    };
+  };
+
+  const handleAddCase = (e: React.FormEvent) => {
+    e.preventDefault();
+    const client = clients.find(c => c.id === newCaseForm.clientId);
+    
+    let caseToAdd: LegalCase = {
+      ...newCaseForm as LegalCase,
+      id: Math.random().toString(36).substr(2, 9),
+      clientName: client?.name || '',
+      createdAt: new Date().toLocaleDateString('ar-AE'),
+      documents: [],
+      comments: [],
+      activities: [],
+      isArchived: false
+    };
+
+    // Log creation
+    const creationActivity: CaseActivity = {
+      id: Math.random().toString(36).substr(2, 9),
+      type: 'info_update',
+      description: 'تم فتح الملف وإنشاء القضية في النظام',
+      userRole: userRole,
+      userName: userRole === 'admin' ? 'إدارة المكتب' : client?.name || 'مستخدم',
+      timestamp: new Date().toLocaleDateString('ar-AE', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
+    };
+    caseToAdd.activities = [creationActivity];
+
+    onAddCase(caseToAdd);
+    setShowAddModal(false);
+    setNewCaseForm({ category: CaseCategory.CIVIL, status: CaseStatus.ACTIVE, totalFee: 0, paidAmount: 0 });
+  };
+
+  const handleStatusChange = (newStatus: CaseStatus) => {
+    if (!selectedCase || selectedCase.status === newStatus) return;
+    
+    let updatedCase = { ...selectedCase, status: newStatus };
+    updatedCase = logActivity(updatedCase, 'status_change', `تغيير حالة الملف من ${selectedCase.status} إلى ${newStatus}`);
+    
+    onUpdateCase(updatedCase);
+    setSelectedCase(updatedCase);
+  };
+
+  const handleAddComment = () => {
+    if (!selectedCase || !commentInput.trim()) return;
+
+    const newComment: CaseComment = {
+      id: Math.random().toString(36).substr(2, 9),
+      authorRole: userRole,
+      authorName: userRole === 'admin' ? 'إدارة المكتب' : selectedCase.clientName,
+      text: commentInput,
+      date: new Date().toLocaleDateString('ar-AE')
+    };
+
+    let updatedCase = { ...selectedCase, comments: [...(selectedCase.comments || []), newComment] };
+    updatedCase = logActivity(updatedCase, 'comment_added', 'إضافة ملاحظة جديدة على الملف');
+    
+    onUpdateCase(updatedCase);
+    setSelectedCase(updatedCase);
+    setCommentInput('');
+  };
 
   const handleAnalyze = async () => {
     if (!selectedCase) return;
     setIsAnalyzing(true);
-    setAnalysisResult(null);
     const result = await analyzeCaseStrategy(selectedCase.title, selectedCase.court, selectedCase.status, selectedCase.opponentName);
     setAnalysisResult(result);
     setIsAnalyzing(false);
   };
 
-  const handleSaveFilter = () => {
-    if (!newFilterName.trim()) return;
-    const newFilter = {
-      id: Math.random().toString(36).substr(2, 9),
-      name: newFilterName,
-      court: filterCourt,
-      status: filterStatus
-    };
-    setSavedFilters([...savedFilters, newFilter]);
-    setNewFilterName('');
+  const handleArchiveCase = (c: LegalCase) => {
+    let updatedCase = { ...c, status: CaseStatus.ARCHIVED, isArchived: true };
+    updatedCase = logActivity(updatedCase, 'info_update', 'تم أرشفة القضية وإغلاق الملف');
+    onUpdateCase(updatedCase);
+    setSelectedCase(null);
   };
 
-  const applySavedFilter = (filter: {court: string, status: string}) => {
-    setFilterCourt(filter.court);
-    setFilterStatus(filter.status);
-  };
-
-  const deleteSavedFilter = (id: string) => {
-    setSavedFilters(savedFilters.filter(f => f.id !== id));
-  };
-
-  const handleAddCase = (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    let finalClientId = newCaseForm.clientId;
-    let finalClientName = clients.find(cl => cl.id === finalClientId)?.name || '';
-
-    if (showNewClientForm) {
-      const now = new Date();
-      const formattedDate = now.toLocaleDateString('ar-AE') + ' ' + now.toLocaleTimeString('ar-AE', { hour: '2-digit', minute: '2-digit' });
-      
-      const newClientId = Math.random().toString(36).substr(2, 9);
-      const newClient: Client = {
-        ...newClientFields,
-        id: newClientId,
-        totalCases: 1,
-        createdAt: formattedDate
-      };
-      onAddClient(newClient);
-      finalClientId = newClientId;
-      finalClientName = newClient.name;
-    }
-
-    const id = Math.random().toString(36).substr(2, 9);
-    const fullCase: LegalCase = {
-      ...newCaseForm as LegalCase,
-      id,
-      clientId: finalClientId || '',
-      clientName: finalClientName,
-      createdAt: new Date().toISOString().split('T')[0],
-      documents: []
-    };
-    
-    onAddCase(fullCase);
-    resetForm();
-  };
-
-  const resetForm = () => {
-    setShowAddModal(false);
-    setShowNewClientForm(false);
-    setNewCaseForm({ status: CaseStatus.ACTIVE, court: CourtType.DUBAI, clientId: '', documents: [], totalFee: 0, paidAmount: 0, opponentName: '', nextHearingDate: '' });
-    setNewClientFields({ name: '', phone: '', email: '', emiratesId: '', address: '', dateOfBirth: '', type: 'Individual' });
-  };
-
-  const filteredCases = cases.filter(c => {
-    const matchesCourt = filterCourt === 'all' || c.court === filterCourt;
-    const matchesStatus = filterStatus === 'all' || c.status === filterStatus;
-    const searchLower = searchTerm.toLowerCase();
-    const matchesSearch = searchTerm === '' || 
-      c.caseNumber.toLowerCase().includes(searchLower) ||
-      c.title.toLowerCase().includes(searchLower) ||
-      c.clientName.toLowerCase().includes(searchLower);
-    
-    return matchesCourt && matchesStatus && matchesSearch;
-  });
-
-  const getStatusColor = (status: CaseStatus) => {
-    switch (status) {
-      case CaseStatus.ACTIVE: return 'bg-blue-100 text-blue-700';
-      case CaseStatus.CLOSED: return 'bg-slate-100 text-slate-700';
-      case CaseStatus.JUDGMENT: return 'bg-green-100 text-green-700';
-      case CaseStatus.APPEAL: return 'bg-purple-100 text-purple-700';
-      case CaseStatus.PENDING: return 'bg-amber-100 text-amber-700';
-      case CaseStatus.LITIGATION: return 'bg-cyan-100 text-cyan-700';
-      default: return 'bg-gray-100 text-gray-700';
+  const getActivityIcon = (type: CaseActivity['type']) => {
+    switch (type) {
+      case 'status_change': return (
+        <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 shadow-sm border border-blue-200">
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
+        </div>
+      );
+      case 'comment_added': return (
+        <div className="w-8 h-8 rounded-full bg-green-100 flex items-center justify-center text-green-600 shadow-sm border border-green-200">
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" /></svg>
+        </div>
+      );
+      default: return (
+        <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-slate-600 shadow-sm border border-slate-200">
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+        </div>
+      );
     }
   };
 
@@ -150,378 +144,277 @@ const CaseManagement: React.FC<CaseManagementProps> = ({ cases, clients, onAddCa
     <div className="p-8">
       <div className="flex justify-between items-center mb-8">
         <div>
-          <h2 className="text-3xl font-bold text-slate-800">إدارة القضايا</h2>
-          <p className="text-slate-500">متابعة ملفات القضايا في مختلف محاكم الدولة</p>
+          <h2 className="text-3xl font-black text-slate-800 tracking-tight">إدارة القضايا</h2>
+          <p className="text-slate-500 font-medium">تصنيف البلاغات، الأرشفة، والقرارات القضائية</p>
         </div>
-        <button 
-          onClick={() => setShowAddModal(true)}
-          className="bg-amber-600 text-white px-6 py-3 rounded-xl font-bold shadow-lg shadow-amber-600/20 hover:bg-amber-700 transition-all flex items-center gap-2"
-        >
-          <span>+ إضافة قضية جديدة</span>
-        </button>
+        {userRole === 'admin' && (
+          <button 
+            onClick={() => setShowAddModal(true)}
+            className="bg-[#1a1a2e] text-white px-8 py-3 rounded-2xl font-black shadow-xl hover:bg-[#d4af37] hover:text-[#1a1a2e] transition-all"
+          >
+            + تسجيل قضية جديدة
+          </button>
+        )}
       </div>
 
-      <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden mb-6">
-        <div className="p-6 border-b border-slate-100 bg-white space-y-4">
-          <div className="flex flex-col md:flex-row gap-4">
-            <div className="relative flex-1">
-              <span className="absolute inset-y-0 right-0 pr-4 flex items-center pointer-events-none text-slate-400">
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
-              </span>
-              <input 
-                type="text" 
-                placeholder="البحث برقم القضية، العنوان، أو اسم الموكل..."
-                className="w-full bg-slate-50 border border-slate-200 rounded-xl pr-12 pl-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 transition-all"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-              />
-            </div>
-            <button 
-              onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}
-              className={`px-5 py-3 rounded-xl border flex items-center gap-2 text-sm font-bold transition-all ${showAdvancedFilters ? 'bg-amber-50 border-amber-200 text-amber-700' : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'}`}
-            >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"></path></svg>
-              <span>تصفية متقدمة</span>
-            </button>
-          </div>
-
-          {showAdvancedFilters && (
-            <div className="pt-4 border-t border-slate-100 animate-in fade-in slide-in-from-top-2 duration-200 space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="space-y-1.5">
-                  <label className="text-[11px] font-bold text-slate-500 mr-1 uppercase tracking-wider">المحكمة</label>
-                  <select 
-                    className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500"
-                    value={filterCourt}
-                    onChange={(e) => setFilterCourt(e.target.value)}
-                  >
-                    <option value="all">كل المحاكم</option>
-                    {Object.values(CourtType).map(court => (
-                      <option key={court} value={court}>{court}</option>
-                    ))}
-                  </select>
-                </div>
-                <div className="space-y-1.5">
-                  <label className="text-[11px] font-bold text-slate-500 mr-1 uppercase tracking-wider">الحالة</label>
-                  <select 
-                    className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500"
-                    value={filterStatus}
-                    onChange={(e) => setFilterStatus(e.target.value)}
-                  >
-                    <option value="all">كل الحالات</option>
-                    {Object.values(CaseStatus).map(status => (
-                      <option key={status} value={status}>{status}</option>
-                    ))}
-                  </select>
-                </div>
-                <div className="space-y-1.5 flex flex-col justify-end">
-                    <label className="text-[11px] font-bold text-slate-500 mr-1 uppercase tracking-wider">حفظ التصفية الحالية</label>
-                    <div className="flex gap-2">
-                        <input
-                            type="text"
-                            placeholder="اسم التصفية..."
-                            className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500"
-                            value={newFilterName}
-                            onChange={(e) => setNewFilterName(e.target.value)}
-                        />
-                        <button 
-                            onClick={handleSaveFilter}
-                            disabled={!newFilterName.trim()}
-                            className="px-4 py-2 bg-slate-800 text-white rounded-lg text-sm font-bold hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                        >
-                            حفظ
-                        </button>
-                    </div>
-                </div>
-              </div>
-              
-              {savedFilters.length > 0 && (
-                  <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-slate-50">
-                      <span className="text-[10px] font-black text-slate-400 ml-2">الفلاتر المحفوظة:</span>
-                      {savedFilters.map(filter => (
-                          <div key={filter.id} className="group flex items-center gap-2 bg-amber-50 border border-amber-100 px-3 py-1.5 rounded-lg hover:border-amber-300 transition-all cursor-pointer">
-                              <span 
-                                onClick={() => applySavedFilter(filter)}
-                                className="text-xs font-bold text-amber-800"
-                              >
-                                {filter.name}
-                              </span>
-                              <button 
-                                onClick={(e) => { e.stopPropagation(); deleteSavedFilter(filter.id); }}
-                                className="text-amber-400 hover:text-amber-700 opacity-50 group-hover:opacity-100 transition-opacity"
-                              >
-                                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path></svg>
-                              </button>
-                          </div>
-                      ))}
-                  </div>
-              )}
-            </div>
-          )}
-        </div>
-        
-        <div className="overflow-x-auto">
-          <table className="w-full text-right border-collapse min-w-[800px]">
-            <thead>
-              <tr className="bg-slate-50 border-b border-slate-100">
-                <th className="px-6 py-4 text-xs font-bold text-slate-600 uppercase">رقم القضية</th>
-                <th className="px-6 py-4 text-xs font-bold text-slate-600 uppercase">عنوان القضية</th>
-                <th className="px-6 py-4 text-xs font-bold text-slate-600 uppercase">الموكل</th>
-                <th className="px-6 py-4 text-xs font-bold text-slate-600 uppercase text-center">التحصيل</th>
-                <th className="px-6 py-4 text-xs font-bold text-slate-600 uppercase text-center">الحالة</th>
-                <th className="px-6 py-4 text-xs font-bold text-slate-600 uppercase">الجلسة القادمة</th>
-                <th className="px-6 py-4 text-xs font-bold text-slate-600 uppercase text-center">إجراءات</th>
+      <div className="bg-white rounded-[2.5rem] shadow-sm border border-slate-100 overflow-hidden">
+        <table className="w-full text-right">
+          <thead className="bg-slate-50 text-[10px] font-black text-slate-400 uppercase tracking-widest">
+            <tr>
+              <th className="px-6 py-4">رقم القضية</th>
+              <th className="px-6 py-4">التصنيف</th>
+              <th className="px-6 py-4">الموكل</th>
+              <th className="px-6 py-4">الحالة</th>
+              <th className="px-6 py-4 text-center">إجراءات</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-slate-100">
+            {cases.filter(c => !c.isArchived).map(c => (
+              <tr key={c.id} className="hover:bg-slate-50 transition-colors">
+                <td className="px-6 py-4 text-sm font-bold">{c.caseNumber}</td>
+                <td className="px-6 py-4">
+                  <span className="bg-blue-50 text-blue-700 px-3 py-1 rounded-full text-[10px] font-bold border border-blue-100">{c.category}</span>
+                </td>
+                <td className="px-6 py-4 text-sm font-bold text-slate-600">{c.clientName}</td>
+                <td className="px-6 py-4">
+                   <span className={`px-3 py-1 rounded-full text-[10px] font-black ${
+                     c.status === CaseStatus.ACTIVE ? 'bg-green-50 text-green-700' :
+                     c.status === CaseStatus.PENDING ? 'bg-amber-50 text-amber-700' :
+                     'bg-slate-100 text-slate-600'
+                   }`}>{c.status}</span>
+                </td>
+                <td className="px-6 py-4 text-center">
+                   <button 
+                    onClick={() => { setSelectedCase(c); setActiveDetailTab('details'); setAnalysisResult(null); }}
+                    className="bg-slate-100 text-[#1a1a2e] px-4 py-1.5 rounded-lg text-xs font-bold hover:bg-[#d4af37] transition-all"
+                   >التفاصيل</button>
+                </td>
               </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100">
-              {filteredCases.map((c) => {
-                const paidPercent = c.totalFee > 0 ? Math.round((c.paidAmount / c.totalFee) * 100) : 0;
-                return (
-                  <tr key={c.id} className="hover:bg-slate-50/80 transition-colors group">
-                    <td className="px-6 py-4 text-sm font-mono font-bold text-slate-700">{c.caseNumber}</td>
-                    <td className="px-6 py-4">
-                      <div className="text-sm font-bold text-slate-800">{c.title}</div>
-                      <div className="text-[10px] text-slate-400 mt-0.5">فتح في: {c.createdAt}</div>
-                    </td>
-                    <td className="px-6 py-4 text-sm text-slate-600">{c.clientName}</td>
-                    <td className="px-6 py-4 text-center">
-                      <div className="flex flex-col items-center gap-1">
-                        <div className="w-24 h-1.5 bg-slate-100 rounded-full overflow-hidden">
-                           <div className="h-full bg-green-500" style={{ width: `${paidPercent}%` }}></div>
-                        </div>
-                        <span className="text-[10px] font-bold text-slate-500">{paidPercent}%</span>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 text-center">
-                      <span className={`inline-block px-3 py-1 rounded-full text-[10px] font-bold ${getStatusColor(c.status)}`}>
-                        {c.status}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 text-sm font-bold">
-                       <div className={`flex items-center gap-1.5 ${new Date(c.nextHearingDate) < new Date() ? 'text-red-600' : 'text-slate-700'}`}>
-                         {c.nextHearingDate}
-                       </div>
-                    </td>
-                    <td className="px-6 py-4 text-center">
-                      <button 
-                        onClick={() => {
-                          setSelectedCase(c);
-                          setAnalysisResult(null);
-                        }}
-                        className="bg-[#1a1a2e] text-white px-4 py-1.5 rounded-lg text-xs font-bold hover:bg-slate-800 transition-all"
-                      >
-                        التفاصيل
-                      </button>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
+            ))}
+          </tbody>
+        </table>
       </div>
 
-      {/* Case Detail Drawer */}
-      {selectedCase && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-end">
-          <div className="bg-white w-full max-w-xl h-full shadow-2xl flex flex-col animate-in slide-in-from-left duration-300">
-            <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50">
-              <div>
-                <h3 className="text-xl font-bold text-slate-800">{selectedCase.title}</h3>
-                <p className="text-sm text-slate-500">رقم الملف: {selectedCase.caseNumber}</p>
+      {/* Add Case Modal */}
+      {showAddModal && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white w-full max-w-xl rounded-[2.5rem] p-10 shadow-2xl">
+            <h3 className="text-2xl font-black mb-8">تسجيل بلاغ/قضية جديدة</h3>
+            <form onSubmit={handleAddCase} className="grid grid-cols-2 gap-6">
+              <div className="col-span-2">
+                <label className="block text-xs font-bold text-slate-400 mb-2">رقم القضية / البلاغ</label>
+                <input required className="w-full border border-slate-200 rounded-xl px-5 py-3 outline-none focus:border-[#d4af37]" onChange={e => setNewCaseForm({...newCaseForm, caseNumber: e.target.value})} />
               </div>
-              <button onClick={() => setSelectedCase(null)} className="p-2 hover:bg-slate-200 rounded-full transition-colors">
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path></svg>
-              </button>
-            </div>
-            
-            <div className="flex-1 overflow-y-auto p-8 custom-scroll space-y-8">
-              
-              {/* AI Strategic Analysis Section - The Genius Feature */}
-              <section className="bg-gradient-to-br from-[#1a1a2e] to-[#16213e] rounded-2xl p-6 text-white shadow-xl relative overflow-hidden group">
-                 <div className="absolute top-0 right-0 w-32 h-32 bg-[#d4af37] opacity-10 rounded-full -mr-16 -mt-16 blur-2xl group-hover:opacity-20 transition-opacity"></div>
-                 <div className="relative z-10">
-                    <div className="flex justify-between items-center mb-4">
-                       <h4 className="text-lg font-black text-[#d4af37] flex items-center gap-2">
-                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
-                          التحليل الاستراتيجي الذكي
-                       </h4>
-                       <button 
-                         onClick={handleAnalyze}
-                         disabled={isAnalyzing}
-                         className="px-4 py-2 bg-white/10 hover:bg-white/20 rounded-lg text-xs font-bold transition-all disabled:opacity-50"
-                       >
-                         {isAnalyzing ? 'جاري التحليل...' : 'تحديث التحليل'}
-                       </button>
-                    </div>
-                    
-                    {!analysisResult && !isAnalyzing && (
-                       <div className="text-center py-6">
-                          <p className="text-sm text-slate-300 mb-4">احصل على رؤية استراتيجية فورية للقضية باستخدام الذكاء الاصطناعي</p>
-                          <button onClick={handleAnalyze} className="bg-[#d4af37] text-[#1a1a2e] px-6 py-2 rounded-xl font-bold hover:scale-105 transition-transform">
-                             بدء التحليل
-                          </button>
-                       </div>
-                    )}
-
-                    {isAnalyzing && (
-                       <div className="space-y-3 animate-pulse">
-                          <div className="h-2 bg-white/10 rounded w-3/4"></div>
-                          <div className="h-2 bg-white/10 rounded w-full"></div>
-                          <div className="h-2 bg-white/10 rounded w-5/6"></div>
-                       </div>
-                    )}
-
-                    {analysisResult && (
-                       <div className="prose prose-invert prose-sm max-w-none text-slate-200 leading-relaxed" dangerouslySetInnerHTML={{ __html: analysisResult }} />
-                    )}
-                 </div>
-              </section>
-
-              <section>
-                <h4 className="text-xs font-bold text-[#d4af37] uppercase tracking-wider mb-4">الوضع المالي للقضية</h4>
-                <div className="bg-white border border-slate-100 p-6 rounded-2xl shadow-sm">
-                   <div className="flex justify-between items-end mb-4">
-                      <div>
-                         <p className="text-[10px] text-slate-400">إجمالي الأتعاب</p>
-                         <h5 className="text-xl font-black text-slate-800">{selectedCase.totalFee?.toLocaleString() || 0} د.إ</h5>
-                      </div>
-                      <div className="text-left">
-                         <p className="text-[10px] text-slate-400">المبلغ المحصل</p>
-                         <h5 className="text-xl font-black text-green-600">{selectedCase.paidAmount?.toLocaleString() || 0} د.إ</h5>
-                      </div>
-                   </div>
-                   <div className="w-full h-2 bg-slate-100 rounded-full overflow-hidden mb-2">
-                      <div 
-                        className="h-full bg-green-500 transition-all duration-500" 
-                        style={{ width: `${selectedCase.totalFee > 0 ? (selectedCase.paidAmount / selectedCase.totalFee) * 100 : 0}%` }}
-                      ></div>
-                   </div>
-                   <p className="text-[10px] text-slate-400 text-center">
-                      تم تحصيل {selectedCase.totalFee > 0 ? Math.round((selectedCase.paidAmount / selectedCase.totalFee) * 100) : 0}% من إجمالي الأتعاب
-                   </p>
-                </div>
-              </section>
-
-              <section>
-                <h4 className="text-xs font-bold text-[#d4af37] uppercase tracking-wider mb-4">بيانات الموكل والمحكمة</h4>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="bg-slate-50 p-4 rounded-xl border border-slate-100">
-                    <p className="text-xs text-slate-500 mb-1">المحكمة</p>
-                    <p className="text-sm font-bold text-slate-800">{selectedCase.court}</p>
-                  </div>
-                  <div className="bg-slate-50 p-4 rounded-xl border border-slate-100">
-                    <p className="text-xs text-slate-500 mb-1">الحالة الحالية</p>
-                    <p className="text-sm font-bold text-slate-800">{selectedCase.status}</p>
-                  </div>
-                  <div className="bg-slate-50 p-4 rounded-xl border border-slate-100">
-                    <p className="text-xs text-slate-500 mb-1">الموكل</p>
-                    <p className="text-sm font-bold text-slate-800">{selectedCase.clientName}</p>
-                  </div>
-                  <div className="bg-slate-50 p-4 rounded-xl border border-slate-100">
-                    <p className="text-xs text-slate-500 mb-1">الخصم</p>
-                    <p className="text-sm font-bold text-slate-800">{selectedCase.opponentName}</p>
-                  </div>
-                </div>
-              </section>
-
-              <section>
-                <div className="flex justify-between items-center mb-4">
-                  <h4 className="text-xs font-bold text-[#d4af37] uppercase tracking-wider">المستندات المرفقة</h4>
-                  <button className="text-[10px] bg-slate-800 text-white px-2 py-1 rounded">إضافة ملف</button>
-                </div>
-                <div className="space-y-2">
-                  {selectedCase.documents.length > 0 ? (
-                    selectedCase.documents.map(doc => (
-                      <div key={doc.id} className="flex items-center justify-between p-3 border border-slate-100 rounded-lg hover:border-[#d4af37] transition-colors cursor-pointer group">
-                        <div className="flex items-center gap-3">
-                          <svg className="w-5 h-5 text-slate-400 group-hover:text-[#d4af37]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"></path></svg>
-                          <div>
-                            <p className="text-sm font-bold text-slate-700">{doc.name}</p>
-                            <p className="text-[10px] text-slate-400">{doc.uploadDate}</p>
-                          </div>
-                        </div>
-                      </div>
-                    ))
-                  ) : (
-                    <p className="text-center py-4 text-xs text-slate-400 border border-dashed rounded-xl">لا توجد مستندات</p>
-                  )}
-                </div>
-              </section>
-            </div>
-            
-            <div className="p-6 border-t border-slate-100 flex gap-3 bg-slate-50">
-              <button 
-                className="flex-1 bg-[#1a1a2e] text-white py-3 rounded-xl font-bold hover:bg-slate-800 transition-colors shadow-lg"
-              >
-                تحديث بيانات القضية
-              </button>
-            </div>
+              <div className="col-span-2">
+                <label className="block text-xs font-bold text-slate-400 mb-2">عنوان القضية</label>
+                <input required className="w-full border border-slate-200 rounded-xl px-5 py-3 outline-none focus:border-[#d4af37]" onChange={e => setNewCaseForm({...newCaseForm, title: e.target.value})} />
+              </div>
+              <div className="col-span-2">
+                <label className="block text-xs font-bold text-slate-400 mb-2">تصنيف البلاغ</label>
+                <select 
+                  className="w-full border border-slate-200 rounded-xl px-5 py-3 outline-none focus:ring-2 focus:ring-[#d4af37]"
+                  onChange={e => setNewCaseForm({...newCaseForm, category: e.target.value as CaseCategory})}
+                >
+                  {Object.values(CaseCategory).map(cat => <option key={cat} value={cat}>{cat}</option>)}
+                </select>
+              </div>
+              <div className="col-span-2">
+                <label className="block text-xs font-bold text-slate-400 mb-2">الموكل</label>
+                <select 
+                  className="w-full border border-slate-200 rounded-xl px-5 py-3 outline-none focus:ring-2 focus:ring-[#d4af37]"
+                  onChange={e => setNewCaseForm({...newCaseForm, clientId: e.target.value})}
+                >
+                  <option value="">اختر الموكل...</option>
+                  {clients.map(cl => <option key={cl.id} value={cl.id}>{cl.name}</option>)}
+                </select>
+              </div>
+              <div className="col-span-2 flex gap-4 mt-4">
+                <button type="button" onClick={() => setShowAddModal(false)} className="flex-1 font-bold text-slate-400">إلغاء</button>
+                <button type="submit" className="flex-1 bg-[#1a1a2e] text-white py-4 rounded-2xl font-black shadow-xl">تسجيل القضية</button>
+              </div>
+            </form>
           </div>
         </div>
       )}
 
-      {/* Add Modal */}
-      {showAddModal && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white w-full max-w-2xl rounded-3xl shadow-2xl overflow-y-auto max-h-[90vh] animate-in fade-in zoom-in duration-200">
-            <div className="bg-[#1a1a2e] p-6 text-white flex justify-between items-center sticky top-0 z-10">
-              <h3 className="text-xl font-bold">إضافة قضية جديدة</h3>
-              <button onClick={() => setShowAddModal(false)} className="hover:rotate-90 transition-transform">
+      {/* Case Archive/Details Drawer */}
+      {selectedCase && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-end">
+          <div className="bg-white w-full max-w-2xl h-full shadow-2xl flex flex-col animate-in slide-in-from-left duration-300">
+            {/* Header */}
+            <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-[#1a1a2e] text-white">
+              <div>
+                <h3 className="text-xl font-black">{selectedCase.title}</h3>
+                <p className="text-xs text-slate-400 mt-1">رقم الملف: {selectedCase.caseNumber}</p>
+              </div>
+              <button onClick={() => setSelectedCase(null)} className="p-2 hover:bg-white/10 rounded-full transition-colors">
                 <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path></svg>
               </button>
             </div>
-            <form onSubmit={handleAddCase} className="p-8 grid grid-cols-2 gap-6">
-              <div className="col-span-1">
-                <label className="block text-sm font-bold text-slate-700 mb-2">رقم القضية</label>
-                <input required className="w-full border border-slate-200 rounded-xl px-4 py-2.5 outline-none focus:ring-2 focus:ring-[#d4af37]" value={newCaseForm.caseNumber} onChange={e => setNewCaseForm({...newCaseForm, caseNumber: e.target.value})} />
-              </div>
-              <div className="col-span-1">
-                <label className="block text-sm font-bold text-slate-700 mb-2">المحكمة</label>
-                <select className="w-full border border-slate-200 rounded-xl px-4 py-2.5 outline-none focus:ring-2 focus:ring-[#d4af37]" value={newCaseForm.court} onChange={e => setNewCaseForm({...newCaseForm, court: e.target.value as CourtType})}>
-                  {Object.values(CourtType).map(c => <option key={c} value={c}>{c}</option>)}
-                </select>
-              </div>
-              <div className="col-span-2">
-                <label className="block text-sm font-bold text-slate-700 mb-2">عنوان القضية</label>
-                <input required className="w-full border border-slate-200 rounded-xl px-4 py-2.5 outline-none focus:ring-2 focus:ring-[#d4af37]" value={newCaseForm.title} onChange={e => setNewCaseForm({...newCaseForm, title: e.target.value})} />
-              </div>
 
-              {/* Status Selection Field */}
-              <div className="col-span-2">
-                <label className="block text-sm font-bold text-slate-700 mb-2">حالة القضية</label>
-                <select 
-                  className="w-full border border-slate-200 rounded-xl px-4 py-2.5 outline-none focus:ring-2 focus:ring-[#d4af37]"
-                  value={newCaseForm.status}
-                  onChange={e => setNewCaseForm({...newCaseForm, status: e.target.value as CaseStatus})}
+            {/* Tabs */}
+            <div className="flex border-b border-slate-100 bg-slate-50 px-6">
+                <button 
+                  onClick={() => setActiveDetailTab('details')}
+                  className={`px-4 py-4 text-xs font-bold border-b-2 transition-colors ${activeDetailTab === 'details' ? 'border-[#d4af37] text-[#1a1a2e]' : 'border-transparent text-slate-400'}`}
                 >
-                  {Object.values(CaseStatus).map(s => <option key={s} value={s}>{s}</option>)}
-                </select>
-              </div>
-              
-              <div className="col-span-1">
-                <label className="block text-sm font-bold text-slate-700 mb-2">إجمالي الأتعاب (د.إ)</label>
-                <input type="number" required className="w-full border border-slate-200 rounded-xl px-4 py-2.5 outline-none focus:ring-2 focus:ring-[#d4af37]" value={newCaseForm.totalFee} onChange={e => setNewCaseForm({...newCaseForm, totalFee: Number(e.target.value)})} />
-              </div>
-              <div className="col-span-1">
-                <label className="block text-sm font-bold text-slate-700 mb-2">المقدم المدفوع (د.إ)</label>
-                <input type="number" required className="w-full border border-slate-200 rounded-xl px-4 py-2.5 outline-none focus:ring-2 focus:ring-[#d4af37]" value={newCaseForm.paidAmount} onChange={e => setNewCaseForm({...newCaseForm, paidAmount: Number(e.target.value)})} />
-              </div>
+                  تفاصيل الملف
+                </button>
+                <button 
+                  onClick={() => setActiveDetailTab('comments')}
+                  className={`px-4 py-4 text-xs font-bold border-b-2 transition-colors ${activeDetailTab === 'comments' ? 'border-[#d4af37] text-[#1a1a2e]' : 'border-transparent text-slate-400'}`}
+                >
+                  الملاحظات ({selectedCase.comments?.length || 0})
+                </button>
+                <button 
+                  onClick={() => setActiveDetailTab('activities')}
+                  className={`px-4 py-4 text-xs font-bold border-b-2 transition-colors ${activeDetailTab === 'activities' ? 'border-[#d4af37] text-[#1a1a2e]' : 'border-transparent text-slate-400'}`}
+                >
+                  سجل النشاطات
+                </button>
+            </div>
+            
+            <div className="flex-1 overflow-y-auto custom-scroll p-6 space-y-6">
+                {activeDetailTab === 'details' && (
+                  <>
+                    <section className="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm">
+                      <div className="flex justify-between items-start mb-4">
+                         <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">بيانات القضية</h4>
+                         {userRole === 'admin' && (
+                            <select 
+                              value={selectedCase.status}
+                              onChange={(e) => handleStatusChange(e.target.value as CaseStatus)}
+                              className="bg-slate-50 border border-slate-200 rounded-lg px-2 py-1 text-xs font-bold outline-none focus:border-[#d4af37]"
+                            >
+                              {Object.values(CaseStatus).map(s => <option key={s} value={s}>{s}</option>)}
+                            </select>
+                         )}
+                      </div>
+                      <div className="grid grid-cols-2 gap-4 text-sm">
+                         <div>
+                            <p className="text-slate-400 text-xs">التصنيف</p>
+                            <p className="font-bold text-slate-700">{selectedCase.category}</p>
+                         </div>
+                         <div>
+                            <p className="text-slate-400 text-xs">الموكل</p>
+                            <p className="font-bold text-slate-700">{selectedCase.clientName}</p>
+                         </div>
+                         <div>
+                            <p className="text-slate-400 text-xs">الخصم</p>
+                            <p className="font-bold text-slate-700">{selectedCase.opponentName || 'غير محدد'}</p>
+                         </div>
+                         <div>
+                            <p className="text-slate-400 text-xs">المحكمة</p>
+                            <p className="font-bold text-slate-700">{selectedCase.court || 'غير محدد'}</p>
+                         </div>
+                      </div>
+                    </section>
 
-              <div className="col-span-1">
-                <label className="block text-sm font-bold text-slate-700 mb-2">اسم الخصم</label>
-                <input required className="w-full border border-slate-200 rounded-xl px-4 py-2.5 outline-none focus:ring-2 focus:ring-[#d4af37]" value={newCaseForm.opponentName} onChange={e => setNewCaseForm({...newCaseForm, opponentName: e.target.value})} />
-              </div>
-              <div className="col-span-1">
-                <label className="block text-sm font-bold text-slate-700 mb-2">تاريخ الجلسة القادمة</label>
-                <input type="date" required className="w-full border border-slate-200 rounded-xl px-4 py-2.5 outline-none focus:ring-2 focus:ring-[#d4af37]" value={newCaseForm.nextHearingDate} onChange={e => setNewCaseForm({...newCaseForm, nextHearingDate: e.target.value})} />
-              </div>
+                    <section>
+                      <h4 className="text-sm font-black text-slate-800 mb-4">مستندات القضية</h4>
+                      <div className="grid grid-cols-2 gap-4">
+                          {['قرار نيابة', 'مذكرة دفاع', 'مستند دعم', 'حكم محكمة'].map(d => (
+                            <div key={d} className="bg-white border border-slate-100 p-4 rounded-2xl flex items-center gap-4 hover:border-[#d4af37] transition-all cursor-pointer">
+                                <div className="w-10 h-10 bg-slate-50 rounded-xl flex items-center justify-center text-slate-400">
+                                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+                                </div>
+                                <span className="text-xs font-bold text-slate-700">{d}</span>
+                            </div>
+                          ))}
+                      </div>
+                    </section>
 
-              <div className="col-span-2 flex justify-end gap-3 mt-4">
-                <button type="button" onClick={resetForm} className="px-6 py-2.5 rounded-xl font-bold text-slate-500 hover:bg-slate-100">إلغاء</button>
-                <button type="submit" className="px-8 py-2.5 bg-[#d4af37] text-[#1a1a2e] rounded-xl font-bold shadow-lg hover:scale-105 transition-all">حفظ القضية</button>
-              </div>
-            </form>
+                    {/* AI Strategy Analysis */}
+                    {userRole === 'admin' && (
+                        <section className="bg-gradient-to-br from-[#1a1a2e] to-[#16213e] rounded-2xl p-6 text-white shadow-xl mt-4">
+                          <div className="flex justify-between items-center mb-4">
+                            <h4 className="text-sm font-black text-[#d4af37] flex items-center gap-2">
+                               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
+                               التحليل الاستراتيجي (AI)
+                            </h4>
+                            <button onClick={handleAnalyze} disabled={isAnalyzing} className="text-[10px] bg-white/10 hover:bg-white/20 px-3 py-1 rounded-lg transition-colors">
+                              {isAnalyzing ? 'جاري التحليل...' : 'تحديث التحليل'}
+                            </button>
+                          </div>
+                          {analysisResult ? (
+                            <div className="prose prose-invert prose-sm text-xs leading-relaxed opacity-90" dangerouslySetInnerHTML={{ __html: analysisResult }} />
+                          ) : (
+                            <p className="text-xs text-slate-400 text-center py-4">اضغط على زر التحديث للحصول على رؤية ذكية لموقف القضية والخطوات القادمة.</p>
+                          )}
+                        </section>
+                    )}
+
+                    {userRole === 'admin' && (
+                      <div className="pt-8 mt-auto border-t border-slate-100">
+                        <button 
+                          onClick={() => handleArchiveCase(selectedCase)}
+                          className="w-full py-4 bg-amber-50 text-amber-700 rounded-2xl font-bold text-xs hover:bg-amber-100 transition-all border border-amber-100"
+                        >
+                          نقل إلى الأرشيف النهائي
+                        </button>
+                      </div>
+                    )}
+                  </>
+                )}
+
+                {activeDetailTab === 'comments' && (
+                  <div className="flex flex-col h-full">
+                     <div className="flex-1 space-y-4 mb-4">
+                        {selectedCase.comments && selectedCase.comments.length > 0 ? (
+                          selectedCase.comments.map(comment => (
+                            <div key={comment.id} className={`p-4 rounded-2xl text-xs ${comment.authorRole === 'admin' ? 'bg-amber-50 mr-8 rounded-tr-none' : 'bg-slate-100 ml-8 rounded-tl-none'}`}>
+                              <div className="flex justify-between items-center mb-2">
+                                <span className="font-black text-slate-600">{comment.authorName}</span>
+                                <span className="text-[10px] text-slate-400">{comment.date}</span>
+                              </div>
+                              <p className="text-slate-700 leading-relaxed">{comment.text}</p>
+                            </div>
+                          ))
+                        ) : (
+                          <div className="text-center py-10 bg-slate-50 rounded-3xl">
+                             <p className="text-slate-400 text-xs">لا توجد ملاحظات مسجلة.</p>
+                          </div>
+                        )}
+                     </div>
+                     <div className="flex gap-2 bg-white p-2 border border-slate-100 rounded-2xl shadow-sm">
+                        <input 
+                           className="flex-1 bg-transparent px-4 py-2 text-xs outline-none" 
+                           placeholder="كتب ملاحظة..." 
+                           value={commentInput}
+                           onChange={(e) => setCommentInput(e.target.value)}
+                           onKeyDown={(e) => e.key === 'Enter' && handleAddComment()}
+                        />
+                        <button 
+                          onClick={handleAddComment}
+                          className="bg-[#1a1a2e] text-white px-4 py-2 rounded-xl text-xs font-bold"
+                        >إرسال</button>
+                     </div>
+                  </div>
+                )}
+
+                {activeDetailTab === 'activities' && (
+                  <div className="relative pl-4 space-y-8 before:absolute before:left-[19px] before:top-2 before:bottom-2 before:w-[2px] before:bg-slate-100">
+                      {selectedCase.activities && selectedCase.activities.length > 0 ? (
+                        selectedCase.activities.map(activity => (
+                           <div key={activity.id} className="relative flex gap-4 items-start">
+                              <div className="z-10 bg-white p-1 rounded-full">
+                                {getActivityIcon(activity.type)}
+                              </div>
+                              <div className="flex-1 bg-slate-50 p-4 rounded-2xl border border-slate-100 hover:shadow-md transition-shadow">
+                                 <div className="flex justify-between items-start mb-1">
+                                    <span className="text-[10px] font-black text-slate-500">{activity.userName}</span>
+                                    <span className="text-[10px] text-slate-400">{activity.timestamp}</span>
+                                 </div>
+                                 <p className="text-xs font-bold text-slate-700">{activity.description}</p>
+                              </div>
+                           </div>
+                        ))
+                      ) : (
+                        <p className="text-center text-xs text-slate-400 py-10">لا يوجد سجل نشاطات لهذا الملف.</p>
+                      )}
+                  </div>
+                )}
+            </div>
           </div>
         </div>
       )}

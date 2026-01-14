@@ -44,9 +44,15 @@ const Dashboard: React.FC = () => {
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M12 4v16m8-8H4"></path></svg>
                   تسجيل قضية جديدة
                </button>
-               <button className="bg-white/5 backdrop-blur-xl text-white px-8 py-3.5 rounded-2xl font-black border border-white/10 hover:bg-white/10 transition-all">
-                  تقارير الأداء المالي
-               </button>
+               <a 
+                 href="https://ahmedhelmy-law.com" 
+                 target="_blank" 
+                 rel="noopener noreferrer"
+                 className="bg-white/5 backdrop-blur-xl text-white px-8 py-3.5 rounded-2xl font-black border border-white/10 hover:bg-white/10 transition-all flex items-center gap-2"
+               >
+                  <span>زيارة الموقع الرسمي</span>
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" /></svg>
+               </a>
             </div>
           </div>
           <div className="opacity-40 transform scale-125 rotate-6 hover:rotate-0 transition-transform duration-700 hidden lg:block">
@@ -103,7 +109,7 @@ const Dashboard: React.FC = () => {
                 <span className="px-4 py-1.5 bg-slate-100 text-slate-600 rounded-full text-[10px] font-black uppercase tracking-widest">إحصائيات 2024</span>
              </div>
           </div>
-          <div className="h-80 w-full">
+          <div className="h-80 w-full" style={{ minHeight: '320px' }}>
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={data}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />

@@ -6,7 +6,8 @@ import AIConsultant from './components/AIConsultant';
 import CaseManagement from './components/CaseManagement';
 import ClientManagement from './components/ClientManagement';
 import Accounting from './components/Accounting';
-import { LegalCase, CaseStatus, CourtType, Client, Invoice } from './types';
+import Login from './components/Login';
+import { LegalCase, CaseStatus, CaseCategory, Client, Invoice, UserRole, Expense, ExpenseCategory } from './types';
 
 const INITIAL_CLIENTS: Client[] = [
   { 
@@ -15,35 +16,10 @@ const INITIAL_CLIENTS: Client[] = [
     email: 'saeed@example.ae', 
     phone: '0501234567', 
     emiratesId: '784-1980-1234567-1', 
-    address: 'شارع خليفة، العين، أبوظبي', 
-    dateOfBirth: '1980-05-12', 
     type: 'Individual', 
+    documents: [],
     totalCases: 1,
     createdAt: '2024-01-10 10:30 ص'
-  },
-  { 
-    id: 'c2', 
-    name: 'مجموعة النماء العقارية', 
-    email: 'contact@namaa.ae', 
-    phone: '042001122', 
-    emiratesId: 'EXP-123456', 
-    address: 'منطقة المقطع، أبوظبي', 
-    dateOfBirth: '2005-01-01', 
-    type: 'Corporate', 
-    totalCases: 1,
-    createdAt: '2024-02-15 09:15 ص'
-  },
-  { 
-    id: 'c3', 
-    name: 'مطاحن دبي الكبرى', 
-    email: 'office@dubaimills.com', 
-    phone: '048887766', 
-    emiratesId: 'CORP-889900', 
-    address: 'جبل علي، دبي', 
-    dateOfBirth: '1995-10-20', 
-    type: 'Corporate', 
-    totalCases: 1,
-    createdAt: '2023-11-20 01:45 م'
   }
 ];
 
@@ -51,68 +27,69 @@ const INITIAL_CASES: LegalCase[] = [
   {
     id: '1',
     caseNumber: '2024/1024',
-    title: 'قضية تعويض عمالي - فصل تعسفي',
+    title: 'قضية تعويض عمالي',
+    category: CaseCategory.LABOR,
     clientId: 'c1',
     clientName: 'سعيد محمد الهاشمي',
-    opponentName: 'شركة الخليج للخدمات',
-    court: CourtType.ADJD,
+    opponentName: 'شركة الخليج',
+    court: 'محاكم دبي',
     status: CaseStatus.ACTIVE,
     nextHearingDate: '2024-06-15',
     assignedLawyer: 'أحمد حلمي',
     createdAt: '2024-01-10',
     documents: [],
+    comments: [],
+    activities: [],
     totalFee: 15000,
-    paidAmount: 5000
-  },
-  {
-    id: '2',
-    caseNumber: '2024/505',
-    title: 'نزاع عقاري - تسليم وحدة سكنية',
-    clientId: 'c2',
-    clientName: 'مجموعة النماء العقارية',
-    opponentName: 'خالد عبدالله الجاسم',
-    court: CourtType.ADJD,
-    status: CaseStatus.PENDING,
-    nextHearingDate: '2024-07-02',
-    assignedLawyer: 'أحمد حلمي',
-    createdAt: '2024-02-15',
-    documents: [],
-    totalFee: 45000,
-    paidAmount: 45000
+    paidAmount: 5000,
+    isArchived: false
   }
 ];
 
-const INITIAL_INVOICES: Invoice[] = [
-  { id: 'inv1', invoiceNumber: '2024/001', caseId: '1', caseTitle: 'قضية تعويض عمالي', clientId: 'c1', clientName: 'سعيد الهاشمي', amount: 5000, date: '2024-01-15', status: 'Paid', description: 'دفعة أولى' },
-  { id: 'inv2', invoiceNumber: '2024/002', caseId: '2', caseTitle: 'نزاع عقاري', clientId: 'c2', clientName: 'مجموعة النماء', amount: 45000, date: '2024-02-20', status: 'Paid', description: 'أتعاب كاملة' }
-];
-
 const App: React.FC = () => {
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [userRole, setUserRole] = useState<UserRole>('visitor');
+  const [currentClientId, setCurrentClientId] = useState<string | null>(null);
+
   const [activeTab, setActiveTab] = useState('dashboard');
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  
   const [cases, setCases] = useState<LegalCase[]>(INITIAL_CASES);
   const [clients, setClients] = useState<Client[]>(INITIAL_CLIENTS);
-  const [invoices, setInvoices] = useState<Invoice[]>(INITIAL_INVOICES);
+  const [invoices, setInvoices] = useState<Invoice[]>([]);
+  const [expenses, setExpenses] = useState<Expense[]>([]);
+
+  const handleLogin = (role: UserRole, clientId?: string) => {
+    setIsAuthenticated(true);
+    setUserRole(role);
+    if (clientId) setCurrentClientId(clientId);
+    setActiveTab(role === 'admin' ? 'dashboard' : 'ai-consultant');
+  };
 
   const handleAddCase = (newCase: LegalCase) => setCases([newCase, ...cases]);
   const handleUpdateCase = (updatedCase: LegalCase) => setCases(cases.map(c => c.id === updatedCase.id ? updatedCase : c));
   const handleAddClient = (newClient: Client) => setClients([...clients, newClient]);
   const handleAddInvoice = (newInvoice: Invoice) => setInvoices([newInvoice, ...invoices]);
+  const handleUpdateInvoice = (updatedInvoice: Invoice) => setInvoices(invoices.map(inv => inv.id === updatedInvoice.id ? updatedInvoice : inv));
+  const handleAddExpense = (newExp: Expense) => setExpenses([newExp, ...expenses]);
 
   const renderContent = () => {
     switch (activeTab) {
       case 'dashboard': return <Dashboard />;
       case 'ai-consultant': return <AIConsultant />;
-      case 'accounting': return <Accounting invoices={invoices} cases={cases} onAddInvoice={handleAddInvoice} />;
-      case 'cases': return <CaseManagement cases={cases} clients={clients} onAddCase={handleAddCase} onUpdateCase={handleUpdateCase} onAddClient={handleAddClient} />;
-      case 'clients': return <ClientManagement clients={clients} cases={cases} onAddClient={handleAddClient} />;
+      case 'cases': return <CaseManagement cases={cases} clients={clients} userRole={userRole} onAddCase={handleAddCase} onUpdateCase={handleUpdateCase} />;
+      case 'clients': return <ClientManagement clients={clients} onAddClient={handleAddClient} />;
+      case 'accounting': return <Accounting invoices={invoices} cases={cases} clients={clients} expenses={expenses} onAddInvoice={handleAddInvoice} onUpdateInvoice={handleUpdateInvoice} onAddExpense={handleAddExpense} />;
       default: return <Dashboard />;
     }
   };
 
+  if (!isAuthenticated) return <Login onLogin={handleLogin} clients={clients} />;
+
   return (
-    <div className="flex bg-[#f4f7f6] min-h-screen">
-      <Sidebar activeTab={activeTab} setActiveTab={setActiveTab} />
-      <main className="flex-1 mr-72 overflow-x-hidden">
+    <div className="flex bg-[#f4f7f6] min-h-screen relative">
+      <Sidebar activeTab={activeTab} setActiveTab={setActiveTab} userRole={userRole} isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} onLogout={() => setIsAuthenticated(false)} />
+      <main className="flex-1 lg:mr-72 overflow-x-hidden min-h-screen">
         {renderContent()}
       </main>
     </div>
