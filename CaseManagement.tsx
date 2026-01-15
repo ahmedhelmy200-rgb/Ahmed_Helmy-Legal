@@ -1,8 +1,8 @@
 
-import React, { useState, useEffect } from 'react';
-import { LegalCase, CaseStatus, CaseCategory, Client, UserRole, CaseComment, CaseActivity } from '../types';
-import { analyzeCaseStrategy } from '../services/geminiService';
-import { CASE_CATEGORIES_TREE } from '../constants';
+import React, { useState } from 'react';
+import { LegalCase, CaseStatus, CaseCategory, Client, UserRole, CaseComment, CaseActivity } from './types';
+// Fixed relative path if this file is at root level
+import { analyzeCaseStrategy } from './services/geminiService';
 
 interface CaseManagementProps {
   cases: LegalCase[];
@@ -10,45 +10,27 @@ interface CaseManagementProps {
   userRole: UserRole;
   onAddCase: (newCase: LegalCase) => void;
   onUpdateCase: (updatedCase: LegalCase) => void;
-  onAddClient: (newClient: Client) => void;
-  onBack: () => void;
 }
 
-const CaseManagement: React.FC<CaseManagementProps> = ({ cases, clients, userRole, onAddCase, onUpdateCase, onAddClient, onBack }) => {
+const CaseManagement: React.FC<CaseManagementProps> = ({ cases, clients, userRole, onAddCase, onUpdateCase }) => {
   const [showAddModal, setShowAddModal] = useState(false);
   const [selectedCase, setSelectedCase] = useState<LegalCase | null>(null);
-  const [activeDetailTab, setActiveDetailTab] = useState<'details' | 'comments' | 'activities' | 'strategy'>('details');
+  const [activeDetailTab, setActiveDetailTab] = useState<'details' | 'comments' | 'activities'>('details');
   const [commentInput, setCommentInput] = useState('');
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [analysisResult, setAnalysisResult] = useState<string | null>(null);
 
-  // حالة إضافة موكل سريع
-  const [isAddingQuickClient, setIsAddingQuickClient] = useState(false);
-  const [quickClientForm, setQuickClientForm] = useState({
-    name: '',
-    phone: '',
-    emiratesId: ''
-  });
-
   const [newCaseForm, setNewCaseForm] = useState<Partial<LegalCase>>({
     category: CaseCategory.CIVIL,
-    subCategory: '',
     status: CaseStatus.ACTIVE,
     totalFee: 0,
-    paidAmount: 0,
-    clientId: ''
+    paidAmount: 0
   });
 
   const canModify = userRole === 'admin' || userRole === 'staff';
   const canArchive = userRole === 'admin';
 
-  // عند تغيير التصنيف الرئيسي، تصفير التصنيف الفرعي
-  useEffect(() => {
-    if (newCaseForm.category) {
-       setNewCaseForm(prev => ({ ...prev, subCategory: '' }));
-    }
-  }, [newCaseForm.category]);
-
+  // Helper to log activities
   const logActivity = (currentCase: LegalCase, type: CaseActivity['type'], description: string): LegalCase => {
     const activity: CaseActivity = {
       id: Math.random().toString(36).substr(2, 9),
@@ -67,27 +49,6 @@ const CaseManagement: React.FC<CaseManagementProps> = ({ cases, clients, userRol
     };
   };
 
-  const handleAddQuickClient = () => {
-    if (!quickClientForm.name || !quickClientForm.phone) return;
-
-    const newClient: Client = {
-      id: Math.random().toString(36).substr(2, 9),
-      name: quickClientForm.name,
-      phone: quickClientForm.phone,
-      emiratesId: quickClientForm.emiratesId,
-      email: '',
-      type: 'Individual',
-      documents: [],
-      totalCases: 0,
-      createdAt: new Date().toLocaleDateString('ar-AE')
-    };
-
-    onAddClient(newClient);
-    setNewCaseForm(prev => ({ ...prev, clientId: newClient.id }));
-    setIsAddingQuickClient(false);
-    setQuickClientForm({ name: '', phone: '', emiratesId: '' });
-  };
-
   const handleAddCase = (e: React.FormEvent) => {
     e.preventDefault();
     const client = clients.find(c => c.id === newCaseForm.clientId);
@@ -95,20 +56,18 @@ const CaseManagement: React.FC<CaseManagementProps> = ({ cases, clients, userRol
     let caseToAdd: LegalCase = {
       ...newCaseForm as LegalCase,
       id: Math.random().toString(36).substr(2, 9),
-      clientName: client?.name || 'عميل جديد',
+      clientName: client?.name || '',
       createdAt: new Date().toLocaleDateString('ar-AE'),
       documents: [],
       comments: [],
       activities: [],
-      isArchived: false,
-      subCategory: newCaseForm.subCategory || 'عام',
-      assignedLawyer: 'المستشار أحمد حلمي'
+      isArchived: false
     };
 
     const creationActivity: CaseActivity = {
       id: Math.random().toString(36).substr(2, 9),
       type: 'info_update',
-      description: `تم فتح الملف بتصنيف ${caseToAdd.category} - ${caseToAdd.subCategory}`,
+      description: 'تم فتح الملف وإنشاء القضية في النظام',
       userRole: userRole,
       userName: userRole === 'admin' ? 'إدارة المكتب' : (userRole === 'staff' ? 'SAMAR' : client?.name || 'مستخدم'),
       timestamp: new Date().toLocaleDateString('ar-AE', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
@@ -117,7 +76,7 @@ const CaseManagement: React.FC<CaseManagementProps> = ({ cases, clients, userRol
 
     onAddCase(caseToAdd);
     setShowAddModal(false);
-    setNewCaseForm({ category: CaseCategory.CIVIL, subCategory: '', status: CaseStatus.ACTIVE, totalFee: 0, paidAmount: 0, clientId: '' });
+    setNewCaseForm({ category: CaseCategory.CIVIL, status: CaseStatus.ACTIVE, totalFee: 0, paidAmount: 0 });
   };
 
   const handleStatusChange = (newStatus: CaseStatus) => {
@@ -187,15 +146,10 @@ const CaseManagement: React.FC<CaseManagementProps> = ({ cases, clients, userRol
 
   return (
     <div className="p-8">
-      <div className="flex flex-col md:flex-row justify-between items-center mb-8 gap-4">
-        <div className="flex items-center gap-4">
-           <button onClick={onBack} className="bg-white p-3 rounded-xl shadow-sm border border-slate-200 hover:bg-slate-50 transition-colors">
-              <svg className="w-5 h-5 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M14 5l7 7m0 0l-7 7m7-7H3" /></svg>
-           </button>
-           <div>
-              <h2 className="text-3xl font-black text-slate-800 tracking-tight">إدارة القضايا</h2>
-              <p className="text-slate-500 font-medium">تصنيف البلاغات، الأرشفة، والقرارات القضائية</p>
-           </div>
+      <div className="flex justify-between items-center mb-8">
+        <div>
+          <h2 className="text-3xl font-black text-slate-800 tracking-tight">إدارة القضايا</h2>
+          <p className="text-slate-500 font-medium">تصنيف البلاغات، الأرشفة، والقرارات القضائية</p>
         </div>
         {canModify && (
           <button 
@@ -213,10 +167,7 @@ const CaseManagement: React.FC<CaseManagementProps> = ({ cases, clients, userRol
             <tr>
               <th className="px-6 py-4">رقم القضية</th>
               <th className="px-6 py-4">التصنيف</th>
-              <th className="px-6 py-4">النوع</th>
               <th className="px-6 py-4">الموكل</th>
-              <th className="px-6 py-4">الأتعاب</th>
-              <th className="px-6 py-4">المدفوع</th>
               <th className="px-6 py-4">الحالة</th>
               <th className="px-6 py-4 text-center">إجراءات</th>
             </tr>
@@ -228,10 +179,7 @@ const CaseManagement: React.FC<CaseManagementProps> = ({ cases, clients, userRol
                 <td className="px-6 py-4">
                   <span className="bg-blue-50 text-blue-700 px-3 py-1 rounded-full text-[10px] font-bold border border-blue-100">{c.category}</span>
                 </td>
-                <td className="px-6 py-4 text-xs text-slate-500">{c.subCategory || '-'}</td>
                 <td className="px-6 py-4 text-sm font-bold text-slate-600">{c.clientName}</td>
-                <td className="px-6 py-4 text-sm font-bold text-slate-700">{(c.totalFee || 0).toLocaleString()} د.إ</td>
-                <td className="px-6 py-4 text-sm font-bold text-green-600">{(c.paidAmount || 0).toLocaleString()} د.إ</td>
                 <td className="px-6 py-4">
                    <span className={`px-3 py-1 rounded-full text-[10px] font-black ${
                      c.status === CaseStatus.ACTIVE ? 'bg-green-50 text-green-700' :
@@ -254,7 +202,7 @@ const CaseManagement: React.FC<CaseManagementProps> = ({ cases, clients, userRol
       {/* Add Case Modal */}
       {showAddModal && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white w-full max-w-xl rounded-[2.5rem] p-10 shadow-2xl custom-scroll overflow-y-auto max-h-[90vh]">
+          <div className="bg-white w-full max-w-xl rounded-[2.5rem] p-10 shadow-2xl">
             <h3 className="text-2xl font-black mb-8">تسجيل بلاغ/قضية جديدة</h3>
             <form onSubmit={handleAddCase} className="grid grid-cols-2 gap-6">
               <div className="col-span-2">
@@ -265,89 +213,25 @@ const CaseManagement: React.FC<CaseManagementProps> = ({ cases, clients, userRol
                 <label className="block text-xs font-bold text-slate-400 mb-2">عنوان القضية</label>
                 <input required className="w-full border border-slate-200 rounded-xl px-5 py-3 outline-none focus:border-[#d4af37]" onChange={e => setNewCaseForm({...newCaseForm, title: e.target.value})} />
               </div>
-
-              {/* Case Category Tree */}
-              <div className="col-span-1">
-                <label className="block text-xs font-bold text-slate-400 mb-2">تصنيف البلاغ (النوع الرئيسي)</label>
+              <div className="col-span-2">
+                <label className="block text-xs font-bold text-slate-400 mb-2">تصنيف البلاغ</label>
                 <select 
-                  className="w-full border border-slate-200 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-[#d4af37] text-sm"
-                  value={newCaseForm.category}
+                  className="w-full border border-slate-200 rounded-xl px-5 py-3 outline-none focus:ring-2 focus:ring-[#d4af37]"
                   onChange={e => setNewCaseForm({...newCaseForm, category: e.target.value as CaseCategory})}
                 >
                   {Object.values(CaseCategory).map(cat => <option key={cat} value={cat}>{cat}</option>)}
                 </select>
               </div>
-
-              <div className="col-span-1">
-                <label className="block text-xs font-bold text-slate-400 mb-2">نوع الدعوى (التفصيل)</label>
+              <div className="col-span-2">
+                <label className="block text-xs font-bold text-slate-400 mb-2">الموكل</label>
                 <select 
-                  className="w-full border border-slate-200 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-[#d4af37] text-sm"
-                  value={newCaseForm.subCategory}
-                  onChange={e => setNewCaseForm({...newCaseForm, subCategory: e.target.value})}
+                  className="w-full border border-slate-200 rounded-xl px-5 py-3 outline-none focus:ring-2 focus:ring-[#d4af37]"
+                  onChange={e => setNewCaseForm({...newCaseForm, clientId: e.target.value})}
                 >
-                  <option value="">اختر نوع الدعوى...</option>
-                  {newCaseForm.category && CASE_CATEGORIES_TREE[newCaseForm.category as CaseCategory]?.map(sub => (
-                    <option key={sub} value={sub}>{sub}</option>
-                  ))}
+                  <option value="">اختر الموكل...</option>
+                  {clients.map(cl => <option key={cl.id} value={cl.id}>{cl.name}</option>)}
                 </select>
               </div>
-
-              {/* Client Selection & Quick Add */}
-              <div className="col-span-2 bg-slate-50 p-4 rounded-2xl border border-slate-100">
-                <div className="flex justify-between items-center mb-2">
-                   <label className="block text-xs font-bold text-slate-400">الموكل</label>
-                   {!isAddingQuickClient && (
-                     <button type="button" onClick={() => setIsAddingQuickClient(true)} className="text-[10px] text-[#d4af37] font-black underline hover:text-amber-600">
-                        + إضافة موكل جديد
-                     </button>
-                   )}
-                </div>
-
-                {!isAddingQuickClient ? (
-                  <select 
-                    className="w-full border border-slate-200 rounded-xl px-5 py-3 outline-none focus:ring-2 focus:ring-[#d4af37] bg-white"
-                    value={newCaseForm.clientId}
-                    onChange={e => setNewCaseForm({...newCaseForm, clientId: e.target.value})}
-                    required
-                  >
-                    <option value="">اختر موكل مسجل...</option>
-                    {clients.map(cl => <option key={cl.id} value={cl.id}>{cl.name}</option>)}
-                  </select>
-                ) : (
-                  <div className="space-y-3 animate-in fade-in slide-in-from-top-2">
-                     <input 
-                        placeholder="اسم الموكل الجديد" 
-                        className="w-full border border-slate-200 rounded-xl px-4 py-2 text-sm focus:border-[#d4af37] outline-none"
-                        value={quickClientForm.name}
-                        onChange={e => setQuickClientForm({...quickClientForm, name: e.target.value})}
-                     />
-                     <div className="flex gap-2">
-                        <input 
-                            placeholder="رقم الهاتف" 
-                            className="flex-1 border border-slate-200 rounded-xl px-4 py-2 text-sm focus:border-[#d4af37] outline-none"
-                            value={quickClientForm.phone}
-                            onChange={e => setQuickClientForm({...quickClientForm, phone: e.target.value})}
-                        />
-                        <input 
-                            placeholder="رقم الهوية" 
-                            className="flex-1 border border-slate-200 rounded-xl px-4 py-2 text-sm focus:border-[#d4af37] outline-none"
-                            value={quickClientForm.emiratesId}
-                            onChange={e => setQuickClientForm({...quickClientForm, emiratesId: e.target.value})}
-                        />
-                     </div>
-                     <div className="flex gap-2">
-                        <button type="button" onClick={handleAddQuickClient} className="flex-1 bg-[#d4af37] text-white py-2 rounded-xl text-xs font-black">حفظ وربط بالقضية</button>
-                        <button type="button" onClick={() => setIsAddingQuickClient(false)} className="px-4 bg-white border border-slate-200 text-slate-500 rounded-xl text-xs font-bold">إلغاء</button>
-                     </div>
-                  </div>
-                )}
-              </div>
-              
-              <div className="col-span-2">
-                <label className="block text-xs font-bold text-slate-400 mb-2">اسم الخصم</label>
-                <input className="w-full border border-slate-200 rounded-xl px-5 py-3 text-sm outline-none" onChange={e => setNewCaseForm({...newCaseForm, opponentName: e.target.value})} />
-              </div>
-
               <div className="col-span-2 flex gap-4 mt-4">
                 <button type="button" onClick={() => setShowAddModal(false)} className="flex-1 font-bold text-slate-400">إلغاء</button>
                 <button type="submit" className="flex-1 bg-[#1a1a2e] text-white py-4 rounded-2xl font-black shadow-xl">تسجيل القضية</button>
@@ -373,34 +257,25 @@ const CaseManagement: React.FC<CaseManagementProps> = ({ cases, clients, userRol
             </div>
 
             {/* Tabs */}
-            <div className="flex border-b border-slate-100 bg-slate-50 px-6 overflow-x-auto">
+            <div className="flex border-b border-slate-100 bg-slate-50 px-6">
                 <button 
                   onClick={() => setActiveDetailTab('details')}
-                  className={`px-4 py-4 text-xs font-bold border-b-2 transition-colors whitespace-nowrap ${activeDetailTab === 'details' ? 'border-[#d4af37] text-[#1a1a2e]' : 'border-transparent text-slate-400'}`}
+                  className={`px-4 py-4 text-xs font-bold border-b-2 transition-colors ${activeDetailTab === 'details' ? 'border-[#d4af37] text-[#1a1a2e]' : 'border-transparent text-slate-400'}`}
                 >
                   تفاصيل الملف
                 </button>
                 <button 
                   onClick={() => setActiveDetailTab('comments')}
-                  className={`px-4 py-4 text-xs font-bold border-b-2 transition-colors whitespace-nowrap ${activeDetailTab === 'comments' ? 'border-[#d4af37] text-[#1a1a2e]' : 'border-transparent text-slate-400'}`}
+                  className={`px-4 py-4 text-xs font-bold border-b-2 transition-colors ${activeDetailTab === 'comments' ? 'border-[#d4af37] text-[#1a1a2e]' : 'border-transparent text-slate-400'}`}
                 >
                   الملاحظات ({selectedCase.comments?.length || 0})
                 </button>
                 <button 
                   onClick={() => { setActiveDetailTab('activities'); }}
-                  className={`px-4 py-4 text-xs font-bold border-b-2 transition-colors whitespace-nowrap ${activeDetailTab === 'activities' ? 'border-[#d4af37] text-[#1a1a2e]' : 'border-transparent text-slate-400'}`}
+                  className={`px-4 py-4 text-xs font-bold border-b-2 transition-colors ${activeDetailTab === 'activities' ? 'border-[#d4af37] text-[#1a1a2e]' : 'border-transparent text-slate-400'}`}
                 >
                   سجل النشاطات
                 </button>
-                {canModify && (
-                  <button 
-                    onClick={() => { setActiveDetailTab('strategy'); if(!analysisResult) handleAnalyze(); }}
-                    className={`px-4 py-4 text-xs font-bold border-b-2 transition-colors flex items-center gap-2 whitespace-nowrap ${activeDetailTab === 'strategy' ? 'border-[#d4af37] text-[#1a1a2e]' : 'border-transparent text-slate-400'}`}
-                  >
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
-                    تحليل ذكي
-                  </button>
-                )}
             </div>
             
             <div className="flex-1 overflow-y-auto custom-scroll p-6 space-y-6">
@@ -419,14 +294,10 @@ const CaseManagement: React.FC<CaseManagementProps> = ({ cases, clients, userRol
                             </select>
                          )}
                       </div>
-                      <div className="grid grid-cols-2 gap-4 text-sm mb-6">
+                      <div className="grid grid-cols-2 gap-4 text-sm">
                          <div>
-                            <p className="text-slate-400 text-xs">التصنيف الرئيسي</p>
+                            <p className="text-slate-400 text-xs">التصنيف</p>
                             <p className="font-bold text-slate-700">{selectedCase.category}</p>
-                         </div>
-                         <div>
-                            <p className="text-slate-400 text-xs">نوع الدعوى</p>
-                            <p className="font-bold text-[#d4af37]">{selectedCase.subCategory || 'عام'}</p>
                          </div>
                          <div>
                             <p className="text-slate-400 text-xs">الموكل</p>
@@ -436,33 +307,32 @@ const CaseManagement: React.FC<CaseManagementProps> = ({ cases, clients, userRol
                             <p className="text-slate-400 text-xs">الخصم</p>
                             <p className="font-bold text-slate-700">{selectedCase.opponentName || 'غير محدد'}</p>
                          </div>
-                         <div className="col-span-2">
-                            <p className="text-slate-400 text-xs">المحكمة المختصة</p>
+                         <div>
+                            <p className="text-slate-400 text-xs">المحكمة</p>
                             <p className="font-bold text-slate-700">{selectedCase.court || 'غير محدد'}</p>
                          </div>
                       </div>
-
-                      {/* ملخص مالي من الحسابات */}
-                      <div className="pt-6 border-t border-slate-50">
-                         <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4">الموقف المالي للملف</h4>
-                         <div className="grid grid-cols-2 gap-4">
-                            <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100">
-                               <p className="text-[10px] font-black text-slate-400 uppercase mb-1">إجمالي الأتعاب</p>
-                               <p className="text-xl font-black text-slate-800">{(selectedCase.totalFee || 0).toLocaleString()} <span className="text-xs">د.إ</span></p>
-                            </div>
-                            <div className="bg-green-50/50 p-4 rounded-2xl border border-green-100">
-                               <p className="text-[10px] font-black text-green-600 uppercase mb-1">المبالغ المحصلة</p>
-                               <p className="text-xl font-black text-green-700">{(selectedCase.paidAmount || 0).toLocaleString()} <span className="text-xs">د.إ</span></p>
-                            </div>
-                            <div className="col-span-2 flex items-center gap-3 px-4 py-2 bg-amber-50 rounded-xl border border-amber-100">
-                               <div className="w-2 h-2 rounded-full bg-amber-500 animate-pulse"></div>
-                               <p className="text-xs font-bold text-amber-700">
-                                 المتبقي بذمة الموكل: {((selectedCase.totalFee || 0) - (selectedCase.paidAmount || 0)).toLocaleString()} د.إ
-                               </p>
-                            </div>
-                         </div>
-                      </div>
                     </section>
+
+                    {/* AI Strategy Analysis */}
+                    {canModify && (
+                        <section className="bg-gradient-to-br from-[#1a1a2e] to-[#16213e] rounded-2xl p-6 text-white shadow-xl mt-4">
+                          <div className="flex justify-between items-center mb-4">
+                            <h4 className="text-sm font-black text-[#d4af37] flex items-center gap-2">
+                               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
+                               التحليل الاستراتيجي (AI)
+                            </h4>
+                            <button onClick={handleAnalyze} disabled={isAnalyzing} className="text-[10px] bg-white/10 hover:bg-white/20 px-3 py-1 rounded-lg transition-colors">
+                              {isAnalyzing ? 'جاري التحليل...' : 'تحديث التحليل'}
+                            </button>
+                          </div>
+                          {analysisResult ? (
+                            <div className="prose prose-invert prose-sm text-xs leading-relaxed opacity-90" dangerouslySetInnerHTML={{ __html: analysisResult }} />
+                          ) : (
+                            <p className="text-xs text-slate-400 text-center py-4">اضغط على زر التحديث للحصول على رؤية ذكية لموقف القضية والخطوات القادمة.</p>
+                          )}
+                        </section>
+                    )}
 
                     {canArchive && (
                       <div className="pt-8 mt-auto border-t border-slate-100">
@@ -477,37 +347,6 @@ const CaseManagement: React.FC<CaseManagementProps> = ({ cases, clients, userRol
                   </>
                 )}
 
-                {activeDetailTab === 'strategy' && (
-                    <section className="bg-gradient-to-br from-[#1a1a2e] to-[#16213e] rounded-2xl p-6 text-white shadow-xl h-full flex flex-col">
-                          <div className="flex justify-between items-center mb-4">
-                            <h4 className="text-sm font-black text-[#d4af37] flex items-center gap-2">
-                               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
-                               التحليل الاستراتيجي (AI)
-                            </h4>
-                            <button onClick={handleAnalyze} disabled={isAnalyzing} className="text-[10px] bg-white/10 hover:bg-white/20 px-3 py-1 rounded-lg transition-colors">
-                              {isAnalyzing ? 'جاري التحليل...' : 'تحديث التحليل'}
-                            </button>
-                          </div>
-                          <div className="flex-1 overflow-y-auto custom-scroll pr-2">
-                            {analysisResult ? (
-                                <div className="prose prose-invert prose-sm text-xs leading-relaxed opacity-90" dangerouslySetInnerHTML={{ __html: analysisResult }} />
-                            ) : (
-                                <div className="flex flex-col items-center justify-center h-full text-slate-400 min-h-[200px]">
-                                {isAnalyzing ? (
-                                    <div className="flex flex-col items-center gap-4">
-                                        <div className="w-8 h-8 border-2 border-[#d4af37] border-t-transparent rounded-full animate-spin"></div>
-                                        <p className="text-xs">جاري دراسة ملف القضية...</p>
-                                    </div>
-                                ) : (
-                                    <p className="text-xs">اضغط على زر التحديث للحصول على رؤية ذكية لموقف القضية.</p>
-                                )}
-                                </div>
-                            )}
-                          </div>
-                    </section>
-                )}
-
-                {/* Comments & Activities Tabs - Same as before */}
                 {activeDetailTab === 'comments' && (
                   <div className="flex flex-col h-full">
                      <div className="flex-1 space-y-4 mb-4">

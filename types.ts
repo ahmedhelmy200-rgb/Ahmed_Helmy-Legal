@@ -1,5 +1,5 @@
 
-export type UserRole = 'admin' | 'visitor' | 'client';
+export type UserRole = 'admin' | 'visitor' | 'client' | 'staff';
 
 export enum CaseStatus {
   ACTIVE = 'نشط',
@@ -12,12 +12,16 @@ export enum CaseStatus {
 }
 
 export enum CaseCategory {
-  CIVIL = 'بلاغ مدني',
-  CRIMINAL = 'بلاغ جنائي',
-  LABOR = 'بلاغ عمالي',
-  COMMERCIAL = 'بلاغ تجاري',
+  CIVIL = 'مدني كلي/جزئي',
+  CRIMINAL = 'جزائي/جنح',
+  LABOR = 'عمالي',
+  COMMERCIAL = 'تجاري',
   FAMILY = 'أحوال شخصية',
-  RENTAL = 'منازعات إيجارية'
+  RENTAL = 'منازعات إيجارية',
+  ADMINISTRATIVE = 'قضاء إداري',
+  EXECUTION = 'تنفيذ',
+  // Added ARCHIVED to fix CaseCategory.ARCHIVED error
+  ARCHIVED = 'أرشفة'
 }
 
 export enum ExpenseCategory {
@@ -36,6 +40,19 @@ export interface Expense {
   date: string;
   description: string;
   caseId?: string; // اختياري إذا كانت مرتبطة بقضية
+}
+
+export interface PaymentReceipt {
+  id: string;
+  receiptNumber: string;
+  date: string;
+  amount: number;
+  payerName: string; // اسم العميل أو الدافع
+  clientId?: string;
+  caseId?: string;
+  method: 'Cash' | 'Check' | 'Bank Transfer';
+  checkNumber?: string; // رقم الشيك أو التحويل
+  description: string;
 }
 
 export interface CaseActivity {
@@ -67,7 +84,8 @@ export interface LegalCase {
   id: string;
   caseNumber: string;
   title: string;
-  category: CaseCategory; // تصنيف البلاغ
+  category: CaseCategory; // تصنيف رئيسي
+  subCategory?: string; // تصنيف فرعي دقيق
   clientId: string;
   clientName: string;
   opponentName: string;
@@ -112,4 +130,5 @@ export interface Client {
   documents: CaseDocument[]; // مستندات الموكل (هوية، جواز...)
   totalCases: number;
   createdAt: string;
+  profileImage?: string; // صورة الملف الشخصي المخصصة
 }

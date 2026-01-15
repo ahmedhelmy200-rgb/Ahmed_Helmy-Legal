@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { ICONS } from '../constants';
 import { UserRole } from '../types';
@@ -23,74 +22,76 @@ const Login: React.FC<LoginProps> = ({ onLogin, clients }) => {
     } else if (activeTab === 'admin') {
       if (password === 'admin123') {
         onLogin('admin');
+      } else if (email === 'samarelabed90@gmail.com' && password === '123456') {
+        onLogin('staff');
       } else {
-        setError('كلمة المرور غير صحيحة للمدير');
+        setError('بيانات الدخول غير صحيحة');
       }
     } else if (activeTab === 'client') {
       const client = clients.find(c => c.email === email && c.emiratesId === password);
       if (client) {
         onLogin('client', client.id);
       } else {
-        setError('البريد الإلكتروني أو رقم الهوية غير مطابق لسجلاتنا');
+        setError('البريد الإلكتروني أو رقم الهوية غير مطابق');
       }
     }
   };
 
   return (
-    <div className="min-h-screen bg-[#0f172a] flex items-center justify-center p-4 relative overflow-hidden">
-      <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-[#d4af37] opacity-5 rounded-full -mr-32 -mt-32 blur-3xl pointer-events-none"></div>
+    <div className="min-h-screen bg-[#020617] flex items-center justify-center p-4 relative overflow-hidden font-sans">
+      <div className="absolute top-0 right-0 w-[600px] h-[600px] bg-[#d4af37] opacity-5 rounded-full -mr-32 -mt-32 blur-[120px] pointer-events-none"></div>
       
-      <div className="bg-white/5 backdrop-blur-xl border border-white/10 w-full max-w-md p-8 rounded-[2.5rem] shadow-2xl relative z-10">
-        <div className="flex justify-center mb-6">
-            <div className="w-20 h-20 bg-gradient-to-br from-[#1e293b] to-[#0f172a] rounded-3xl flex items-center justify-center shadow-2xl border border-white/10 p-4">
+      <div className="bg-white/5 backdrop-blur-3xl border border-white/10 w-full max-w-md p-10 rounded-[3.5rem] shadow-2xl relative z-10 animate-in fade-in zoom-in duration-700">
+        <div className="flex justify-center mb-10">
+            <div className="w-28 h-28">
                 <ICONS.Logo />
             </div>
         </div>
         
-        <div className="text-center mb-6">
-            <h1 className="text-xl font-black text-white mb-1">LegalMaster UAE</h1>
-            <p className="text-slate-400 text-xs">نظام إدارة مكاتب المحاماة والاستشارات</p>
+        <div className="text-center mb-10">
+            <h1 className="text-4xl font-black text-white mb-2 tracking-tighter">نظام حلم الذكي</h1>
+            <p className="text-slate-400 text-[9px] font-bold uppercase tracking-[0.4em]">أحمد حلمي للاستشارات القانونية</p>
         </div>
 
-        <div className="flex bg-[#1a1a2e] p-1 rounded-2xl mb-6">
+        <div className="flex bg-white/5 p-1.5 rounded-2xl mb-8 border border-white/5 shadow-inner">
             <button 
                 onClick={() => { setActiveTab('admin'); setError(''); }}
-                className={`flex-1 py-2.5 rounded-xl text-[10px] font-bold transition-all ${activeTab === 'admin' ? 'bg-[#d4af37] text-[#1a1a2e]' : 'text-slate-400 hover:text-white'}`}
+                className={`flex-1 py-3.5 rounded-xl text-[10px] font-black transition-all duration-300 ${activeTab === 'admin' ? 'bg-[#d4af37] text-[#020617] shadow-lg shadow-[#d4af37]/40' : 'text-slate-400 hover:text-white'}`}
             >
-                مدير المكتب
+                الإدارة
             </button>
             <button 
                 onClick={() => { setActiveTab('client'); setError(''); }}
-                className={`flex-1 py-2.5 rounded-xl text-[10px] font-bold transition-all ${activeTab === 'client' ? 'bg-[#d4af37] text-[#1a1a2e]' : 'text-slate-400 hover:text-white'}`}
+                className={`flex-1 py-3.5 rounded-xl text-[10px] font-black transition-all duration-300 ${activeTab === 'client' ? 'bg-[#d4af37] text-[#020617] shadow-lg shadow-[#d4af37]/40' : 'text-slate-400 hover:text-white'}`}
             >
-                دخول الموكل
+                الموكلين
             </button>
             <button 
                 onClick={() => { setActiveTab('visitor'); setError(''); }}
-                className={`flex-1 py-2.5 rounded-xl text-[10px] font-bold transition-all ${activeTab === 'visitor' ? 'bg-[#d4af37] text-[#1a1a2e]' : 'text-slate-400 hover:text-white'}`}
+                className={`flex-1 py-3.5 rounded-xl text-[10px] font-black transition-all duration-300 ${activeTab === 'visitor' ? 'bg-[#d4af37] text-[#020617] shadow-lg shadow-[#d4af37]/40' : 'text-slate-400 hover:text-white'}`}
             >
                 زائر
             </button>
         </div>
 
-        <form onSubmit={handleLogin} className="space-y-4">
-            {activeTab === 'client' && (
+        <form onSubmit={handleLogin} className="space-y-6">
+            {(activeTab === 'client' || activeTab === 'admin') && (
                 <div className="space-y-2">
-                    <label className="text-[10px] font-bold text-slate-400 mr-2">البريد الإلكتروني</label>
+                    <label className="text-[10px] font-black text-slate-400 mr-2 uppercase tracking-widest text-right">البريد الإلكتروني</label>
                     <input 
-                        type="email" 
+                        type="text" 
                         required
                         value={email}
                         onChange={(e) => setEmail(e.target.value)}
-                        placeholder="example@email.com"
-                        className="w-full bg-[#1a1a2e] border border-white/10 rounded-xl px-4 py-3 text-white text-sm outline-none focus:border-[#d4af37] text-center dir-ltr"
+                        placeholder="example@legal.ae"
+                        className="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-white text-sm outline-none focus:border-[#d4af37] focus:ring-1 focus:ring-[#d4af37]/30 transition-all text-center dir-ltr shadow-inner"
                     />
                 </div>
             )}
 
             {(activeTab === 'admin' || activeTab === 'client') && (
                 <div className="space-y-2">
-                    <label className="text-[10px] font-bold text-slate-400 mr-2">
+                    <label className="text-[10px] font-black text-slate-400 mr-2 uppercase tracking-widest text-right">
                         {activeTab === 'admin' ? 'كلمة المرور' : 'رقم الهوية الإماراتية'}
                     </label>
                     <input 
@@ -98,24 +99,24 @@ const Login: React.FC<LoginProps> = ({ onLogin, clients }) => {
                         required
                         value={password}
                         onChange={(e) => setPassword(e.target.value)}
-                        placeholder={activeTab === 'admin' ? "كلمة المرور" : "784-XXXX-XXXXXXX-X"}
-                        className="w-full bg-[#1a1a2e] border border-white/10 rounded-xl px-4 py-3 text-white text-sm outline-none focus:border-[#d4af37] text-center dir-ltr"
+                        placeholder="••••••••"
+                        className="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-white text-sm outline-none focus:border-[#d4af37] focus:ring-1 focus:ring-[#d4af37]/30 transition-all text-center dir-ltr shadow-inner"
                     />
                 </div>
             )}
 
-            {error && <p className="text-red-500 text-[10px] font-bold text-center mt-2 bg-red-500/10 py-2 rounded-lg">{error}</p>}
+            {error && <p className="text-red-400 text-[10px] font-black text-center mt-2 bg-red-400/10 py-3 rounded-2xl border border-red-400/20">{error}</p>}
 
             <button 
                 type="submit"
-                className="w-full bg-gradient-to-r from-[#d4af37] to-[#b8960c] text-[#1a1a2e] py-3.5 rounded-xl font-black text-xs shadow-xl hover:scale-[1.02] transition-all"
+                className="w-full bg-gradient-to-r from-[#d4af37] to-[#b8960c] text-[#020617] py-5 rounded-2xl font-black text-xs shadow-2xl hover:scale-[1.02] active:scale-95 transition-all duration-500"
             >
                 دخول النظام
             </button>
         </form>
 
-        <div className="mt-6 pt-4 border-t border-white/5 text-center">
-            <p className="text-[9px] text-slate-600 font-bold tracking-widest">مكتب المستشار أحمد حلمي للمحاماة &copy; 2024</p>
+        <div className="mt-10 pt-6 border-t border-white/5 text-center">
+            <p className="text-[9px] text-slate-600 font-bold tracking-[0.5em] uppercase">نظام حلم الذكي - HELM &copy; 2024</p>
         </div>
       </div>
     </div>
