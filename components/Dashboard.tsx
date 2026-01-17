@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { LegalCase, Client, Invoice, CaseStatus, UserRole } from '../types';
-import { ICONS } from '../constants';
+import { ICONS, STATUS_COLORS } from '../constants';
 
 interface DashboardProps {
   cases: LegalCase[];
@@ -13,83 +13,135 @@ interface DashboardProps {
   logo?: string;
 }
 
-const Dashboard: React.FC<DashboardProps> = ({ cases, clients, invoices, userRole, onNavigate, onLogout, logo }) => {
+const Dashboard: React.FC<DashboardProps> = ({ cases, clients, invoices, userRole, onNavigate, logo }) => {
   const activeCases = cases.filter(c => c.status !== CaseStatus.WON && c.status !== CaseStatus.LOST).length;
+  const totalRevenue = invoices.filter(i => i.status === 'Paid').reduce((s, i) => s + i.paidAmount, 0);
 
   return (
-    <div className="min-h-screen bg-white flex flex-col font-sans">
-      {/* Premium Hero Header */}
-      <div className="bg-slate-50 p-12 lg:p-16 rounded-b-[4rem] border-b border-slate-100 relative overflow-hidden">
-        <div className="absolute top-0 right-0 w-96 h-96 bg-amber-500/5 rounded-full -mr-20 -mt-20 blur-3xl pointer-events-none"></div>
+    <div className="min-h-screen flex flex-col font-sans animate-fade-in">
+      {/* Header Info Bar */}
+      <div className="bg-white p-8 rounded-[2.5rem] shadow-sm border border-slate-200 mb-8 relative overflow-hidden">
+        <div className="absolute top-0 right-0 w-64 h-64 bg-[#d4af37]/5 rounded-full -mr-32 -mt-32 blur-3xl"></div>
         
-        <div className="relative z-10 flex flex-col lg:flex-row justify-between items-center gap-12">
-           <div className="flex items-center gap-12">
-              <div className="w-24 h-24 shrink-0 p-4 bg-white rounded-3xl shadow-xl shadow-slate-200 border border-slate-50 overflow-hidden">
-                 <img src={logo || "https://img.icons8.com/fluency/240/scales.png"} className="w-full h-full object-contain" />
+        <div className="relative z-10 flex flex-col lg:flex-row justify-between items-center gap-8">
+           <div className="flex items-center gap-6">
+              <div className="w-24 h-24 shrink-0 p-2 bg-slate-50 rounded-3xl shadow-inner border border-slate-200 flex items-center justify-center">
+                 {logo ? <img src={logo} className="w-full h-full object-contain" /> : <ICONS.Logo />}
               </div>
               <div>
-                 <h1 className="text-4xl font-black text-slate-800 tracking-tighter mb-2">نظام حلم الذكي <span className="text-[#d4af37]">3.0</span></h1>
-                 <p className="text-slate-400 text-[10px] font-black tracking-[0.4em] uppercase">مركز المستشار أحمد حلمي للاستشارات القانونية</p>
+                 <h1 className="text-3xl font-black text-slate-800 tracking-tight mb-2">مكتب المستشار أحمد حلمي</h1>
+                 <p className="text-[#d4af37] text-[13px] font-bold tracking-widest uppercase">نظام الإدارة الرقمية المتكامل - الإصدار 3.5</p>
               </div>
            </div>
            
-           <div className="flex items-center gap-6">
+           <div className="flex items-center gap-4">
              <a 
                href="https://ahmed-helmy-legal.vercel.app/" 
                target="_blank" 
                rel="noopener noreferrer"
-               className="bg-white border border-slate-200 text-slate-700 px-8 py-4 rounded-[1.5rem] font-black text-[10px] transition-all hover:border-[#d4af37] hover:text-[#d4af37] shadow-sm flex items-center gap-3"
+               className="bg-slate-900 text-white px-8 py-3.5 rounded-2xl font-black text-[11px] transition-all hover:bg-[#d4af37] shadow-xl hover:-translate-y-0.5"
              >
                الموقع الرسمي للمكتب
              </a>
-             <button onClick={() => onNavigate('settings')} className="bg-slate-800 text-white px-8 py-4 rounded-[1.5rem] font-black text-[10px] hover:bg-[#d4af37] transition-all shadow-xl shadow-slate-200">الإعدادات</button>
+             <button onClick={() => onNavigate('settings')} className="bg-white border border-slate-200 text-slate-600 px-8 py-3.5 rounded-2xl font-black text-[11px] hover:bg-slate-50 transition-all shadow-sm">الإعدادات</button>
            </div>
         </div>
 
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-8 mt-16 animate-slide-up">
-           <div className="bg-white p-8 rounded-[2rem] border border-slate-100 shadow-sm">
-              <p className="text-[10px] font-black uppercase text-slate-400 mb-2 tracking-widest">قضايا متداولة</p>
-              <h3 className="text-3xl font-black text-slate-800">{activeCases}</h3>
-           </div>
-           <div className="bg-white p-8 rounded-[2rem] border border-slate-100 shadow-sm">
-              <p className="text-[10px] font-black uppercase text-slate-400 mb-2 tracking-widest">الموكلين</p>
-              <h3 className="text-3xl font-black text-slate-800">{clients.length}</h3>
-           </div>
-           <div className="bg-white p-8 rounded-[2rem] border border-slate-100 shadow-sm">
-              <p className="text-[10px] font-black uppercase text-slate-400 mb-2 tracking-widest">إجمالي الإيرادات</p>
-              <h3 className="text-3xl font-black text-[#d4af37]">{invoices.filter(i => i.status === 'Paid').reduce((s,i) => s + i.amount, 0).toLocaleString()} <span className="text-xs">د.إ</span></h3>
-           </div>
-           <div className="bg-[#d4af37] p-8 rounded-[2rem] text-white shadow-xl shadow-amber-500/20">
-              <p className="text-[10px] font-black uppercase text-white/70 mb-2 tracking-widest">الحالة الرقمية</p>
-              <h3 className="text-xl font-black">جاهز للعمل <span className="animate-pulse">●</span></h3>
-           </div>
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-6 mt-10">
+           {[
+             { label: 'القضايا المتداولة', value: activeCases, color: 'text-slate-800' },
+             { label: 'إجمالي الموكلين', value: clients.length, color: 'text-slate-800' },
+             { label: 'المحصل المالي', value: `${totalRevenue.toLocaleString()} د.إ`, color: 'text-green-600' },
+             { label: 'المستحقات المعلقة', value: `${(invoices.filter(i => i.status !== 'Paid').reduce((s,i) => s + (i.amount - i.paidAmount), 0)).toLocaleString()} د.إ`, color: 'text-red-500' }
+           ].map((stat, idx) => (
+             <div key={idx} className="bg-slate-50/50 p-6 rounded-3xl border border-slate-200 hover:bg-white hover:shadow-md transition-all group">
+                <p className="text-[10px] font-black uppercase text-slate-400 mb-2 tracking-widest group-hover:text-[#d4af37]">{stat.label}</p>
+                <h3 className={`text-2xl font-black ${stat.color}`}>{stat.value}</h3>
+             </div>
+           ))}
         </div>
       </div>
 
-      <div className="flex-1 p-12 lg:p-16">
-        <h4 className="text-xs font-black text-slate-400 uppercase tracking-[0.3em] mb-10 flex items-center gap-4">
-           نظام الوصول السريع 
-           <span className="h-px flex-1 bg-slate-100"></span>
-        </h4>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-10">
-          <button onClick={() => onNavigate('cases')} className="premium-card p-10 rounded-[3rem] flex flex-col items-center gap-8 group">
-            <div className="w-20 h-20 bg-blue-50 text-blue-600 rounded-3xl flex items-center justify-center group-hover:scale-110 transition-all"><ICONS.Cases className="w-10 h-10" /></div>
-            <span className="font-black text-slate-800 group-hover:text-[#d4af37] transition-colors">إدارة القضايا</span>
-          </button>
-          <button onClick={() => onNavigate('clients')} className="premium-card p-10 rounded-[3rem] flex flex-col items-center gap-8 group">
-            <div className="w-20 h-20 bg-purple-50 text-purple-600 rounded-3xl flex items-center justify-center group-hover:scale-110 transition-all"><ICONS.Clients className="w-10 h-10" /></div>
-            <span className="font-black text-slate-800 group-hover:text-[#d4af37] transition-colors">الموكلين</span>
-          </button>
-          <button onClick={() => onNavigate('accounting')} className="premium-card p-10 rounded-[3rem] flex flex-col items-center gap-8 group">
-            <div className="w-20 h-20 bg-green-50 text-green-600 rounded-3xl flex items-center justify-center group-hover:scale-110 transition-all">
-              <svg className="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-            </div>
-            <span className="font-black text-slate-800 group-hover:text-[#d4af37] transition-colors">الشؤون المالية</span>
-          </button>
-          <button onClick={() => onNavigate('ai-consultant')} className="bg-[#fdfbf7] p-10 rounded-[3rem] border border-amber-100 shadow-xl shadow-amber-500/5 flex flex-col items-center gap-8 group hover:-translate-y-2 transition-all">
-            <div className="w-20 h-20 bg-amber-50 text-[#d4af37] rounded-3xl flex items-center justify-center group-hover:scale-110 transition-all"><ICONS.AI className="w-10 h-10" /></div>
-            <span className="font-black text-[#d4af37]">المستشار الذكي</span>
-          </button>
+      {/* Main Grid */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        {/* Recent Cases Section */}
+        <div className="lg:col-span-2 space-y-6">
+           <div className="flex justify-between items-center mb-2">
+              <h2 className="text-xl font-black text-slate-800 flex items-center gap-3">
+                 <span className="w-1.5 h-6 bg-[#d4af37] rounded-full"></span>
+                 آخر القضايا المحدثة
+              </h2>
+              <button onClick={() => onNavigate('cases')} className="text-xs font-black text-[#d4af37] underline">عرض الكل</button>
+           </div>
+           <div className="bg-white rounded-[2.5rem] border border-slate-200 shadow-sm overflow-hidden">
+              <table className="w-full text-right">
+                 <thead className="bg-slate-50 text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-200">
+                    <tr>
+                       <th className="p-6">عنوان القضية</th>
+                       <th className="p-6">الموكل</th>
+                       <th className="p-6">الحالة</th>
+                       <th className="p-6">الإجراء</th>
+                    </tr>
+                 </thead>
+                 <tbody className="divide-y divide-slate-100">
+                    {cases.slice(0, 5).map(c => (
+                       <tr key={c.id} className="hover:bg-slate-50/50 transition-all">
+                          <td className="p-6">
+                             <p className="font-bold text-slate-700 text-sm">{c.title}</p>
+                             <p className="text-[10px] text-slate-400 mt-1 font-bold">#{c.caseNumber}</p>
+                          </td>
+                          <td className="p-6 text-sm font-bold text-slate-500">{c.clientName}</td>
+                          <td className="p-6">
+                             <span className={`px-4 py-1.5 rounded-full text-[10px] font-black border ${STATUS_COLORS[c.status]}`}>
+                                {c.status}
+                             </span>
+                          </td>
+                          <td className="p-6">
+                             <button onClick={() => onNavigate('cases')} className="p-2.5 bg-slate-100 rounded-xl hover:bg-[#d4af37] hover:text-white transition-all">
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>
+                             </button>
+                          </td>
+                       </tr>
+                    ))}
+                 </tbody>
+              </table>
+           </div>
+        </div>
+
+        {/* Financial Shortcut Section */}
+        <div className="space-y-6">
+           <h2 className="text-xl font-black text-slate-800 flex items-center gap-3">
+              <span className="w-1.5 h-6 bg-red-400 rounded-full"></span>
+              تنبيهات مالية
+           </h2>
+           <div className="bg-white p-8 rounded-[2.5rem] border border-slate-200 shadow-sm">
+              <div className="space-y-4">
+                 {invoices.filter(i => i.status === 'Unpaid').slice(0, 3).map(inv => (
+                    <div key={inv.id} className="p-5 bg-red-50 rounded-3xl border border-red-100 flex justify-between items-center group hover:bg-white hover:border-[#d4af37] transition-all">
+                       <div>
+                          <p className="text-[10px] font-black text-red-400 uppercase tracking-widest mb-1">فاتورة مستحقة</p>
+                          <p className="text-sm font-bold text-slate-700">{clients.find(cl => cl.id === inv.clientId)?.name}</p>
+                       </div>
+                       <p className="font-black text-red-600 text-lg">{inv.amount.toLocaleString()} <span className="text-[10px]">د.إ</span></p>
+                    </div>
+                 ))}
+                 <button onClick={() => onNavigate('accounting')} className="w-full py-4 bg-slate-900 text-white rounded-2xl font-black text-xs shadow-xl hover:bg-[#d4af37] transition-all">الذهاب للحسابات</button>
+              </div>
+           </div>
+           
+           {/* Smart AI Consultant Shortcut */}
+           <div className="bg-gradient-to-br from-[#1e293b] to-[#0f172a] p-8 rounded-[2.5rem] text-white shadow-2xl relative overflow-hidden group cursor-pointer" onClick={() => onNavigate('ai-consultant')}>
+              <div className="absolute top-0 right-0 w-32 h-32 bg-[#d4af37]/10 rounded-full blur-2xl group-hover:scale-150 transition-transform"></div>
+              <div className="w-14 h-14 bg-white/10 rounded-2xl flex items-center justify-center mb-6 border border-white/5 group-hover:bg-[#d4af37] group-hover:text-slate-900 transition-all">
+                 <ICONS.AI className="w-8 h-8" />
+              </div>
+              <h3 className="text-xl font-black mb-2">المستشار الذكي (3.0)</h3>
+              <p className="text-slate-400 text-xs font-bold leading-relaxed">اسأل الذكاء الاصطناعي عن أي مادة قانونية أو اطلب تحليل ملف قضية فورياً.</p>
+              <div className="mt-8 flex items-center gap-2 text-[#d4af37] font-black text-[10px] uppercase tracking-widest">
+                 ابدأ المحادثة الآن
+                 <svg className="w-4 h-4 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" /></svg>
+              </div>
+           </div>
         </div>
       </div>
     </div>

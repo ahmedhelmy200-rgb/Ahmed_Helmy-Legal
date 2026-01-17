@@ -10,7 +10,7 @@ import AdminSettings from './components/AdminSettings';
 import Login from './components/Login';
 import Sidebar from './components/Sidebar';
 import { db } from './services/database';
-import { LegalCase, Client, Invoice, UserRole, Expense, PaymentReceipt, SystemSettings, FutureDebt } from './types';
+import { LegalCase, Client, Invoice, UserRole, Expense, FutureDebt, SystemSettings, LegalDocument } from './types';
 import { ICONS } from './constants';
 
 const App: React.FC = () => {
@@ -25,8 +25,8 @@ const App: React.FC = () => {
   const [clients, setClients] = useState<Client[]>([]);
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [expenses, setExpenses] = useState<Expense[]>([]);
-  const [receipts, setReceipts] = useState<PaymentReceipt[]>([]);
   const [futureDebts, setFutureDebts] = useState<FutureDebt[]>([]);
+  const [documents, setDocuments] = useState<LegalDocument[]>([]);
   
   const [settings, setSettings] = useState<SystemSettings>({
     primaryColor: '#d4af37',
@@ -39,24 +39,26 @@ const App: React.FC = () => {
     const loadData = async () => {
       setIsLoading(true);
       try {
-        const [casesData, clientsData, invoicesData, expensesData, receiptsData] = await Promise.all([
+        const [casesData, clientsData, invoicesData, expensesData, debtsData, docsData] = await Promise.all([
           db.fetchAll('cases'),
           db.fetchAll('clients'),
           db.fetchAll('invoices'),
           db.fetchAll('expenses'),
-          db.fetchAll('receipts')
+          db.fetchAll('future_debts'),
+          db.fetchAll('documents')
         ]);
         
         setCases(casesData || []);
         setClients(clientsData || []);
         setInvoices(invoicesData || []);
         setExpenses(expensesData || []);
-        setReceipts(receiptsData || []);
+        setFutureDebts(debtsData || []);
+        setDocuments(docsData || []);
         
         const savedSettings = localStorage.getItem('helm_settings');
         if (savedSettings) setSettings(JSON.parse(savedSettings));
       } catch (error) {
-        console.error("فشل مزامنة البيانات:", error);
+        console.error("خطأ في جلب البيانات:", error);
       } finally {
         setIsLoading(false);
       }
@@ -77,23 +79,38 @@ const App: React.FC = () => {
     setCurrentClientId(null);
   };
 
-  const updateSettings = (newSettings: SystemSettings) => {
-    setSettings(newSettings);
-    localStorage.setItem('helm_settings', JSON.stringify(newSettings));
+  const handleAddInvoice = (inv: Invoice) => {
+    setInvoices([inv, ...invoices]);
+    db.save('invoices', inv);
+  };
+
+  const handleAddExpense = (exp: Expense) => {
+    setExpenses([exp, ...expenses]);
+    db.save('expenses', exp);
+  };
+
+  const handleAddFutureDebt = (debt: FutureDebt) => {
+    setFutureDebts([debt, ...futureDebts]);
+    db.save('future_debts', debt);
+  };
+
+  const handleUpdateInvoice = (updatedInv: Invoice) => {
+    setInvoices(invoices.map(i => i.id === updatedInv.id ? updatedInv : i));
+    db.update('invoices', updatedInv.id, updatedInv);
   };
 
   const goBack = () => setActiveTab('dashboard');
 
   if (isLoading) {
     return (
-      <div className="h-screen flex flex-col items-center justify-center bg-white text-slate-800">
-        <div className="w-48 h-24 mb-10 flex items-center justify-center p-4">
-            <img src={settings.logo || "https://img.icons8.com/fluency/240/scales.png"} className="w-full h-full object-contain animate-pulse" />
+      <div className="h-screen flex flex-col items-center justify-center bg-slate-50 text-slate-800 font-sans">
+        <div className="w-32 h-32 mb-8 animate-pulse">
+            <ICONS.Logo />
         </div>
-        <div className="w-64 h-1.5 bg-slate-50 rounded-full overflow-hidden border border-slate-100">
+        <div className="w-64 h-1.5 bg-slate-200 rounded-full overflow-hidden">
             <div className="h-full bg-[#d4af37] animate-progress"></div>
         </div>
-        <p className="mt-6 text-[10px] font-black tracking-[0.4em] text-slate-400 uppercase">HELM SMART PORTAL IS LOADING...</p>
+        <p className="mt-6 text-sm font-bold tracking-widest text-slate-400 uppercase">HELM SMART 3.5 IS LOADING...</p>
       </div>
     );
   }
@@ -101,7 +118,7 @@ const App: React.FC = () => {
   if (!isAuthenticated) return <Login onLogin={handleLogin} clients={clients} />;
   
   return (
-    <div className="bg-white min-h-screen relative overflow-x-hidden flex flex-col lg:flex-row-reverse dir-rtl font-sans">
+    <div className="bg-slate-50 min-h-screen relative overflow-x-hidden flex flex-col lg:flex-row-reverse dir-rtl font-sans selection:bg-[#d4af37] selection:text-white text-slate-800">
       <Sidebar 
         activeTab={activeTab} 
         setActiveTab={setActiveTab} 
@@ -113,15 +130,7 @@ const App: React.FC = () => {
       />
 
       <main className="flex-1 lg:mr-72 min-h-screen">
-        {/* Mobile Header */}
-        <div className="lg:hidden p-4 flex justify-between items-center border-b border-slate-100 bg-white sticky top-0 z-30">
-          <div className="w-10 h-10"><ICONS.Logo /></div>
-          <button onClick={() => setIsSidebarOpen(true)} className="p-3 bg-slate-50 rounded-xl">
-            <svg className="w-6 h-6 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 12h16m-7 6h7" /></svg>
-          </button>
-        </div>
-
-        <div className="page-transition min-h-screen">
+        <div className="page-transition min-h-screen p-4 lg:p-8">
           {activeTab === 'dashboard' && (
             <Dashboard 
               cases={cases} 
@@ -141,9 +150,9 @@ const App: React.FC = () => {
               cases={userRole === 'client' ? cases.filter(c => c.clientId === currentClientId) : cases} 
               clients={clients} 
               userRole={userRole} 
-              onAddCase={(c) => setCases([c, ...cases])} 
-              onUpdateCase={(c) => setCases(cases.map(i => i.id === c.id ? c : i))} 
-              onAddClient={(c) => setClients([...clients, c])}
+              onAddCase={(c) => { setCases([c, ...cases]); db.save('cases', c); }} 
+              onUpdateCase={(c) => { setCases(cases.map(i => i.id === c.id ? c : i)); db.update('cases', c.id, c); }} 
+              onAddClient={(c) => { setClients([...clients, c]); db.save('clients', c); }}
               onBack={goBack}
             />
           )}
@@ -153,9 +162,9 @@ const App: React.FC = () => {
               clients={clients} 
               cases={cases} 
               invoices={invoices}
-              receipts={receipts}
-              onAddClient={(c) => setClients([...clients, c])} 
-              onUpdateClient={(c) => setClients(clients.map(i => i.id === c.id ? c : i))} 
+              documents={documents}
+              onAddClient={(c) => { setClients([...clients, c]); db.save('clients', c); }} 
+              onUpdateClient={(c) => { setClients(clients.map(i => i.id === c.id ? c : i)); db.update('clients', c.id, c); }} 
               onBack={goBack}
             />
           )}
@@ -167,8 +176,10 @@ const App: React.FC = () => {
               futureDebts={futureDebts}
               clients={clients}
               cases={cases}
-              onAddExpense={(e) => setExpenses([e, ...expenses])}
-              onAddFutureDebt={(d) => setFutureDebts([d, ...futureDebts])}
+              onAddExpense={handleAddExpense}
+              onAddFutureDebt={handleAddFutureDebt}
+              onAddInvoice={handleAddInvoice}
+              onUpdateInvoice={handleUpdateInvoice}
               onBack={goBack}
             />
           )}
@@ -176,14 +187,16 @@ const App: React.FC = () => {
           {activeTab === 'laws' && <LawsLibrary onBack={goBack} />}
 
           {activeTab === 'settings' && (
-            <AdminSettings settings={settings} onUpdateSettings={updateSettings} onBack={goBack} />
+            <AdminSettings settings={settings} onUpdateSettings={(s) => { setSettings(s); localStorage.setItem('helm_settings', JSON.stringify(s)); }} onBack={goBack} />
           )}
         </div>
       </main>
 
       <style>{`
         @keyframes progress { 0% { width: 0%; } 100% { width: 100%; } }
-        .animate-progress { animation: progress 2.5s ease-in-out infinite; }
+        .animate-progress { animation: progress 2s ease-in-out infinite; }
+        .page-transition { animation: fadeIn 0.3s ease-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
       `}</style>
     </div>
   );

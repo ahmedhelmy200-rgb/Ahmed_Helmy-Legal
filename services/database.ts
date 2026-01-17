@@ -7,9 +7,9 @@ import { Client, LegalCase, CaseStatus, CaseCategory, Invoice, Expense, ExpenseC
  */
 
 const SEED_CLIENTS: Client[] = [
-  { id: 'c1', name: 'محمد سعيد المنصوري', type: 'Individual', email: 'm.almansoori@email.com', phone: '0501234567', emiratesId: '784-1980-1234567-1', totalCases: 2, createdAt: '2024-01-15', address: 'العين، الإمارات', documents: [] },
-  { id: 'c2', name: 'شركة الاتحاد للمقاولات', type: 'Corporate', email: 'info@etihad-cont.ae', phone: '026789012', emiratesId: 'CN-123456', totalCases: 5, createdAt: '2024-02-01', address: 'أبوظبي، الإمارات', documents: [] },
-  { id: 'c3', name: 'فاطمة علي الظاهري', type: 'Individual', email: 'f.aldhaheri@email.com', phone: '0559876543', emiratesId: '784-1990-7654321-2', totalCases: 1, createdAt: '2024-03-10', address: 'العين، الإمارات', documents: [] }
+  { id: 'c1', name: 'محمد سعيد المنصوري', type: 'Individual', email: 'm.almansoori@email.com', phone: '0501234567', emiratesId: '784-1980-1234567-1', totalCases: 2, createdAt: '2024-01-15', address: 'العين، الإمارات' },
+  { id: 'c2', name: 'شركة الاتحاد للمقاولات', type: 'Corporate', email: 'info@etihad-cont.ae', phone: '026789012', emiratesId: 'CN-123456', totalCases: 5, createdAt: '2024-02-01', address: 'أبوظبي، الإمارات' },
+  { id: 'c3', name: 'فاطمة علي الظاهري', type: 'Individual', email: 'f.aldhaheri@email.com', phone: '0559876543', emiratesId: '784-1990-7654321-2', totalCases: 1, createdAt: '2024-03-10', address: 'العين، الإمارات' }
 ];
 
 const SEED_CASES: LegalCase[] = [
@@ -18,10 +18,10 @@ const SEED_CASES: LegalCase[] = [
 ];
 
 const SEED_INVOICES: Invoice[] = [
-  { id: 'inv1', clientId: 'c1', amount: 15000, status: 'Paid', date: '2024-05-20', description: 'أتعاب نهائية - قضية 2024/102' },
-  { id: 'inv2', clientId: 'c2', amount: 25000, status: 'Paid', date: '2025-01-12', description: 'دفعة أولى - قضية فسخ عقد' },
-  { id: 'inv3', clientId: 'c2', amount: 25000, status: 'Unpaid', date: '2025-02-15', description: 'الدفعة الثانية المستحقة' },
-  { id: 'inv4', clientId: 'c3', amount: 5000, status: 'Paid', date: '2025-01-20', description: 'استشارة قانونية - أحوال شخصية' }
+  { id: 'inv1', clientId: 'c1', amount: 15000, paidAmount: 15000, status: 'Paid', date: '2024-05-20', description: 'أتعاب نهائية - قضية 2024/102' },
+  { id: 'inv2', clientId: 'c2', amount: 25000, paidAmount: 25000, status: 'Paid', date: '2025-01-12', description: 'دفعة أولى - قضية فسخ عقد' },
+  { id: 'inv3', clientId: 'c2', amount: 25000, paidAmount: 0, status: 'Unpaid', date: '2025-02-15', description: 'الدفعة الثانية المستحقة' },
+  { id: 'inv4', clientId: 'c3', amount: 5000, paidAmount: 5000, status: 'Paid', date: '2025-01-20', description: 'استشارة قانونية - أحوال شخصية' }
 ];
 
 const SEED_EXPENSES: Expense[] = [

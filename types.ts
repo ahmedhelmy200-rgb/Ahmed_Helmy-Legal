@@ -41,7 +41,6 @@ export interface ChatMessage {
   isAudio?: boolean;
 }
 
-// Added missing CaseComment interface
 export interface CaseComment {
   id: string;
   authorRole: UserRole;
@@ -50,14 +49,23 @@ export interface CaseComment {
   date: string;
 }
 
-// Added missing CaseActivity interface
 export interface CaseActivity {
   id: string;
-  type: 'status_change' | 'comment_added' | 'info_update';
+  type: 'status_change' | 'comment_added' | 'info_update' | 'document_added';
   description: string;
   userRole: UserRole;
   userName: string;
   timestamp: string;
+}
+
+export interface LegalDocument {
+  id: string;
+  title: string;
+  category: 'Contract' | 'Judgment' | 'Memo' | 'Receipt' | 'Other';
+  uri: string;
+  uploadDate: string;
+  caseId?: string;
+  clientId: string;
 }
 
 export interface LegalCase {
@@ -65,7 +73,7 @@ export interface LegalCase {
   caseNumber: string;
   title: string;
   category: CaseCategory;
-  subCategory?: string; // Added subCategory field
+  subCategory?: string;
   clientId: string;
   clientName: string;
   opponentName: string;
@@ -74,12 +82,12 @@ export interface LegalCase {
   totalFee: number;
   paidAmount: number;
   createdAt: string;
-  nextHearingDate?: string; // Added nextHearingDate field
+  nextHearingDate?: string;
   isArchived: boolean;
   documents: string[];
-  comments?: CaseComment[]; // Updated to use CaseComment interface
-  activities?: CaseActivity[]; // Updated to use CaseActivity interface
-  assignedLawyer?: string; // Added assignedLawyer field
+  comments?: CaseComment[];
+  activities?: CaseActivity[];
+  assignedLawyer?: string;
 }
 
 export interface Client {
@@ -91,56 +99,51 @@ export interface Client {
   address: string;
   type: 'Individual' | 'Corporate';
   createdAt: string;
-  documents: string[];
-  totalCases?: number; // Added totalCases field
+  totalCases?: number;
+  profileImage?: string;
+  balance?: number;
 }
 
-// Added missing Invoice interface
 export interface Invoice {
   id: string;
   clientId: string;
+  caseId?: string; // Optional for general revenue
   amount: number;
-  status: 'Paid' | 'Unpaid';
+  paidAmount: number;
+  status: 'Paid' | 'Unpaid' | 'Partially Paid';
   date: string;
   description?: string;
+  branch?: string;
 }
 
-// Added missing ExpenseCategory enum
 export enum ExpenseCategory {
   OFFICE = 'مكتب',
   PERSONAL = 'شخصي'
 }
 
-// Added missing Expense interface
 export interface Expense {
   id: string;
   amount: number;
   category: ExpenseCategory;
   description: string;
   date: string;
+  caseId?: string;
 }
 
-// Added missing PaymentReceipt interface
-export interface PaymentReceipt {
-  id: string;
-  clientId: string;
-  amount: number;
-  date: string;
-}
-
-// Added missing FutureDebt interface
 export interface FutureDebt {
   id: string;
   clientName: string;
+  clientId?: string;
   amount: number;
   dueDate: string;
   description: string;
+  isReminded?: boolean;
 }
 
-// Added missing SystemSettings interface
 export interface SystemSettings {
   logo?: string;
   stamp?: string;
+  signature?: string;
   language: AppLanguage;
   primaryColor: string;
 }
