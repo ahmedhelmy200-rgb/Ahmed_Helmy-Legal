@@ -1,177 +1,205 @@
 
 import React, { useState, useRef, useEffect } from 'react';
-import { getLegalAdvice, generateLegalImage, editLegalImage, analyzeLegalDocument } from '../services/geminiService';
+import { getAdvancedLegalChat, editImageWithGemini, generateVeoVideo, generateProImage } from '../services/geminiService';
+import { ChatMessage } from '../types';
 
 interface AIConsultantProps {
   onBack: () => void;
 }
 
 const AIConsultant: React.FC<AIConsultantProps> = ({ onBack }) => {
-  const [activeMode, setActiveMode] = useState<'chat' | 'image' | 'analysis'>('chat');
-  const [messages, setMessages] = useState<{ role: 'user' | 'ai', text: string, image?: string }[]>([
-    { role: 'ai', text: 'مرحباً بك في مركز "حُلم" للذكاء القانوني المطور. أنا مستشارك الرقمي المعتمد لمكتب أحمد حلمي.' }
+  const [activeTab, setActiveTab] = useState<'chat' | 'creative' | 'voice'>('chat');
+  const [messages, setMessages] = useState<ChatMessage[]>([
+    { role: 'ai', text: 'مرحباً بك في مركز أحمد حلمي للذكاء القانوني. كيف يمكنني مساعدتك اليوم؟' }
   ]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [aspectRatio, setAspectRatio] = useState('1:1');
-  const [thinkingMode, setThinkingMode] = useState(false);
+  const [uploadedImage, setUploadedImage] = useState<string | null>(null);
+
+  // Creative Mode Settings
+  const [mediaTask, setMediaTask] = useState<'pro-image' | 'veo-video' | 'edit-image'>('pro-image');
+  const [proSize, setProSize] = useState<'1K' | '2K' | '4K'>('1K');
+  const [aspectRatio, setAspectRatio] = useState<'16:9' | '9:16' | '1:1'>('16:9');
+  
+  // Chat Settings
+  const [useSearch, setUseSearch] = useState(true);
+  const [useMaps, setUseMaps] = useState(false);
+  const [useThinking, setUseThinking] = useState(false);
+
   const scrollRef = useRef<HTMLDivElement>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
   }, [messages, isLoading]);
 
-  const handleSend = async () => {
-    if (!input.trim() || isLoading) return;
-    const userMsg = input;
-    setInput('');
-    setMessages(prev => [...prev, { role: 'user', text: userMsg }]);
-    setIsLoading(true);
-
-    if (activeMode === 'chat') {
-      const response = await getLegalAdvice(userMsg, thinkingMode);
-      setMessages(prev => [...prev, { role: 'ai', text: response || 'عذراً، لم أتمكن من الحصول على إجابة.' }]);
-    } else if (activeMode === 'image') {
-      const imageUrl = await generateLegalImage(userMsg, aspectRatio);
-      if (imageUrl) {
-        setMessages(prev => [...prev, { role: 'ai', text: 'تم توليد الصورة القانونية المطلوبة:', image: imageUrl }]);
-      } else {
-        setMessages(prev => [...prev, { role: 'ai', text: 'فشل توليد الصورة.' }]);
-      }
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => setUploadedImage(reader.result as string);
+      reader.readAsDataURL(file);
     }
-    setIsLoading(false);
   };
 
-  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+  const handleProcessRequest = async () => {
+    if (!input.trim() && !uploadedImage) return;
+    const currentInput = input;
+    setInput('');
+    setMessages(prev => [...prev, { role: 'user', text: currentInput, image: uploadedImage || undefined }]);
+    setIsLoading(true);
 
-    const reader = new FileReader();
-    reader.onloadend = async () => {
-      const base64 = reader.result as string;
-      setIsLoading(true);
-      setMessages(prev => [...prev, { role: 'user', text: 'تم رفع مستند/صورة للتحليل', image: base64 }]);
-      
-      const analysis = await analyzeLegalDocument(base64);
-      setMessages(prev => [...prev, { role: 'ai', text: analysis || 'فشل التحليل.' }]);
-      setIsLoading(false);
-    };
-    reader.readAsDataURL(file);
+    try {
+      if (activeTab === 'chat') {
+        const result = await getAdvancedLegalChat(currentInput, { useSearch, useMaps, useThinking, image: uploadedImage || undefined });
+        setMessages(prev => [...prev, { role: 'ai', text: result.text, links: result.links }]);
+      } 
+      else if (activeTab === 'creative') {
+        let resultMedia = null;
+        if (mediaTask === 'pro-image') {
+          resultMedia = await generateProImage(currentInput, proSize, aspectRatio);
+          setMessages(prev => [...prev, { role: 'ai', text: 'تم توليد الصورة الاحترافية بنجاح:', image: resultMedia || undefined }]);
+        } else if (mediaTask === 'veo-video') {
+          resultMedia = await generateVeoVideo(currentInput, uploadedImage || undefined, aspectRatio as any);
+          setMessages(prev => [...prev, { role: 'ai', text: 'تم توليد الفيديو باستخدام Veo:', video: resultMedia }]);
+        } else if (mediaTask === 'edit-image' && uploadedImage) {
+          resultMedia = await editImageWithGemini(uploadedImage, currentInput);
+          setMessages(prev => [...prev, { role: 'ai', text: 'تم تعديل الصورة وفقاً لطلبك:', image: resultMedia || undefined }]);
+        }
+      }
+    } catch (error: any) {
+      setMessages(prev => [...prev, { role: 'ai', text: `عذراً، حدث خطأ: ${error.message}` }]);
+    }
+    
+    setIsLoading(false);
+    setUploadedImage(null);
   };
 
   return (
-    <div className="h-screen flex flex-col bg-[#f8fafc] font-sans">
-      {/* Header */}
-      <div className="bg-[#020617] p-8 lg:p-10 text-white rounded-b-[4rem] shadow-2xl relative overflow-hidden shrink-0">
-        <div className="absolute top-0 left-0 w-full h-full bg-[#d4af37] opacity-5 animate-pulse"></div>
-        <div className="relative z-10 flex flex-col md:flex-row justify-between items-center gap-6">
-          <div className="flex items-center gap-6">
-             <button onClick={onBack} className="bg-white/10 p-4 rounded-2xl hover:bg-[#d4af37] hover:text-[#020617] transition-all">
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M14 5l7 7m0 0l-7 7m7-7H3" /></svg>
-             </button>
-             <div>
-                <h2 className="text-3xl font-black text-[#d4af37] tracking-tighter">مركز حُلم الذكي (HELM)</h2>
-                <p className="text-slate-400 text-xs font-bold uppercase tracking-[0.2em]">أحمد حلمي للاستشارات القانونية - الإصدار الفائق</p>
-             </div>
+    <div className="h-screen flex flex-col bg-white overflow-hidden font-sans">
+      {/* Premium Header */}
+      <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50/50 backdrop-blur-md sticky top-0 z-20">
+        <div className="flex items-center gap-4">
+          <button onClick={onBack} className="p-3 bg-white border border-slate-200 rounded-2xl hover:bg-slate-100 transition-all text-slate-600">
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M14 5l7 7m0 0l-7 7m7-7H3" /></svg>
+          </button>
+          <div className="flex flex-col">
+            <h2 className="text-xl font-black text-[#d4af37]">المستشار الذكي (حُلم 3.0)</h2>
+            <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Advanced Legal Intelligence</p>
           </div>
-          
-          <div className="flex bg-white/5 p-1.5 rounded-[1.5rem] border border-white/10">
-             {(['chat', 'image', 'analysis'] as const).map(mode => (
-               <button 
-                key={mode} 
-                onClick={() => setActiveMode(mode)}
-                className={`px-6 py-2.5 rounded-xl text-[10px] font-black transition-all ${activeMode === mode ? 'bg-[#d4af37] text-[#020617]' : 'text-slate-400 hover:text-white'}`}
-               >
-                 {mode === 'chat' ? 'مستشار قانوني' : mode === 'image' ? 'مصمم جرافيك' : 'محلل مستندات'}
-               </button>
-             ))}
-          </div>
+        </div>
+        <div className="flex bg-white p-1 rounded-2xl border border-slate-200 shadow-sm">
+          {['chat', 'creative', 'voice'].map((t: any) => (
+            <button key={t} onClick={() => setActiveTab(t)} className={`px-6 py-2.5 rounded-xl text-[10px] font-black transition-all ${activeTab === t ? 'bg-[#d4af37] text-white shadow-lg shadow-amber-500/20' : 'text-slate-400 hover:text-slate-600'}`}>
+              {t === 'chat' ? 'المحادثة الذكية' : t === 'creative' ? 'الاستوديو الإبداعي' : 'المحادثة الصوتية'}
+            </button>
+          ))}
         </div>
       </div>
 
-      {/* Main Area */}
-      <div className="flex-1 flex flex-col overflow-hidden p-6 lg:p-12 gap-6">
-        <div ref={scrollRef} className="flex-1 overflow-y-auto custom-scroll space-y-8 px-4">
-           {messages.map((m, idx) => (
-             <div key={idx} className={`flex ${m.role === 'user' ? 'justify-start' : 'justify-end'} animate-in fade-in slide-in-from-bottom-4`}>
-                <div className={`max-w-[85%] p-6 rounded-[2.5rem] shadow-sm relative border ${
-                  m.role === 'user' 
-                  ? 'bg-gradient-to-br from-[#1e293b] to-[#0f172a] text-white rounded-tr-none border-white/10' 
-                  : 'bg-white text-slate-800 rounded-tl-none border-slate-100'
-                }`}>
-                   {m.image && (
-                     <img src={m.image} className="w-full max-w-sm rounded-2xl mb-4 border-2 border-[#d4af37]/20 shadow-lg" alt="Generated content" />
-                   )}
-                   <p className="text-sm lg:text-[15px] leading-[1.8] font-medium whitespace-pre-wrap">{m.text}</p>
+      <div className="flex-1 flex flex-col overflow-hidden relative">
+        <div ref={scrollRef} className="flex-1 overflow-y-auto p-8 space-y-10 custom-scroll">
+          {messages.map((m, i) => (
+            <div key={i} className={`flex ${m.role === 'user' ? 'justify-start' : 'justify-end'} animate-slide-up`}>
+              <div className={`max-w-[85%] lg:max-w-[70%] p-8 rounded-[2.5rem] shadow-sm border ${m.role === 'user' ? 'bg-slate-50 border-slate-100 rounded-tr-none' : 'bg-white border-amber-100 text-slate-800 rounded-tl-none'}`}>
+                {m.image && <img src={m.image} className="w-full rounded-3xl mb-4 border border-slate-200 shadow-xl" alt="Legal Data" />}
+                {m.video && <video src={m.video} controls className="w-full rounded-3xl mb-4 shadow-xl border border-slate-200" />}
+                <p className="text-sm font-medium leading-relaxed whitespace-pre-wrap">{m.text}</p>
+                {m.links && m.links.length > 0 && (
+                  <div className="mt-6 pt-6 border-t border-slate-100 flex flex-wrap gap-2">
+                    {m.links.map((link, li) => (
+                      <a key={li} href={link.uri} target="_blank" rel="noopener noreferrer" className="text-[10px] bg-amber-50 text-[#d4af37] px-4 py-1.5 rounded-full font-bold border border-amber-100 hover:bg-amber-100 transition-colors">
+                        {link.title}
+                      </a>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          ))}
+          {isLoading && (
+            <div className="flex justify-end">
+              <div className="bg-white p-8 rounded-[2.5rem] border border-amber-100 flex items-center gap-4 shadow-sm">
+                <div className="flex gap-1.5">
+                  <div className="w-2.5 h-2.5 bg-[#d4af37] rounded-full animate-bounce"></div>
+                  <div className="w-2.5 h-2.5 bg-[#d4af37] rounded-full animate-bounce [animation-delay:0.2s]"></div>
+                  <div className="w-2.5 h-2.5 bg-[#d4af37] rounded-full animate-bounce [animation-delay:0.4s]"></div>
                 </div>
-             </div>
-           ))}
-           {isLoading && (
-             <div className="flex justify-end">
-                <div className="bg-white p-6 rounded-[2.5rem] border border-slate-100 shadow-sm flex items-center gap-3">
-                   <div className="flex gap-1.5">
-                      <div className="w-2 h-2 bg-[#d4af37] rounded-full animate-bounce"></div>
-                      <div className="w-2 h-2 bg-[#d4af37] rounded-full animate-bounce [animation-delay:0.2s]"></div>
-                      <div className="w-2 h-2 bg-[#d4af37] rounded-full animate-bounce [animation-delay:0.4s]"></div>
-                   </div>
-                   <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">المعالج الذكي يعمل...</span>
-                </div>
-             </div>
-           )}
+                <span className="text-[10px] font-black uppercase text-[#d4af37]">جاري التفكير بعمق...</span>
+              </div>
+            </div>
+          )}
         </div>
 
-        {/* Input Controls */}
-        <div className="bg-white p-6 lg:p-10 rounded-[3rem] shadow-2xl border border-slate-100 relative">
-           {activeMode === 'image' && (
-             <div className="flex gap-4 mb-6 overflow-x-auto pb-2 no-print">
-                {['1:1', '16:9', '9:16', '4:3', '3:2', '21:9'].map(ratio => (
-                   <button 
-                    key={ratio} 
-                    onClick={() => setAspectRatio(ratio)}
-                    className={`px-5 py-2 rounded-xl text-[10px] font-black border transition-all ${aspectRatio === ratio ? 'bg-[#d4af37] border-[#d4af37] text-[#020617]' : 'bg-slate-50 border-slate-200 text-slate-500'}`}
-                   >الأبعاد {ratio}</button>
-                ))}
-             </div>
-           )}
+        {/* Dynamic Control Panel */}
+        <div className="p-8 bg-slate-50/80 backdrop-blur-2xl border-t border-slate-100">
+          {activeTab === 'chat' && (
+            <div className="flex gap-4 mb-6">
+              <button onClick={() => setUseSearch(!useSearch)} className={`px-5 py-2.5 rounded-2xl text-[10px] font-black border transition-all ${useSearch ? 'bg-blue-600 border-blue-600 text-white' : 'bg-white border-slate-200 text-slate-400'}`}>
+                جوجل سيرش
+              </button>
+              <button onClick={() => setUseMaps(!useMaps)} className={`px-5 py-2.5 rounded-2xl text-[10px] font-black border transition-all ${useMaps ? 'bg-green-600 border-green-600 text-white' : 'bg-white border-slate-200 text-slate-400'}`}>
+                خرائط جوجل
+              </button>
+              <button onClick={() => setUseThinking(!useThinking)} className={`px-5 py-2.5 rounded-2xl text-[10px] font-black border transition-all ${useThinking ? 'bg-amber-600 border-amber-600 text-white shadow-lg' : 'bg-white border-slate-200 text-slate-400'}`}>
+                وضع التفكير (Pro Thinking)
+              </button>
+            </div>
+          )}
 
-           <div className="flex gap-4 items-center">
-              {activeMode === 'analysis' && (
-                <button onClick={() => fileInputRef.current?.click()} className="bg-slate-100 p-4 rounded-2xl text-slate-600 hover:bg-[#d4af37] hover:text-[#020617] transition-all">
-                   <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" /></svg>
-                </button>
+          {activeTab === 'creative' && (
+            <div className="flex flex-wrap gap-4 mb-6">
+              <select value={mediaTask} onChange={(e: any) => setMediaTask(e.target.value)} className="bg-white border border-slate-200 rounded-2xl px-5 py-2.5 text-[10px] font-black outline-none focus:ring-2 focus:ring-[#d4af37]">
+                <option value="pro-image">توليد صورة (Gemini Pro)</option>
+                <option value="veo-video">توليد فيديو (Veo 3)</option>
+                <option value="edit-image">تعديل صورة (Flash Image)</option>
+              </select>
+              {mediaTask === 'pro-image' && (
+                <select value={proSize} onChange={(e: any) => setProSize(e.target.value)} className="bg-white border border-slate-200 rounded-2xl px-5 py-2.5 text-[10px] font-black outline-none">
+                  <option value="1K">دقة 1K</option>
+                  <option value="2K">دقة 2K</option>
+                  <option value="4K">دقة 4K الفائقة</option>
+                </select>
               )}
-              <input type="file" ref={fileInputRef} className="hidden" onChange={handleFileUpload} accept="image/*" />
-              
-              <div className="flex-1 relative">
+              <select value={aspectRatio} onChange={(e: any) => setAspectRatio(e.target.value)} className="bg-white border border-slate-200 rounded-2xl px-5 py-2.5 text-[10px] font-black outline-none">
+                <option value="16:9">أبعاد 16:9</option>
+                <option value="9:16">أبعاد 9:16</option>
+                <option value="1:1">أبعاد 1:1</option>
+              </select>
+            </div>
+          )}
+
+          <div className="flex gap-4 items-end">
+            <div className="flex-1 relative">
+              {uploadedImage && (
+                <div className="absolute -top-16 right-0 bg-white p-2 rounded-2xl border border-slate-200 shadow-xl flex items-center gap-3">
+                  <img src={uploadedImage} className="w-10 h-10 rounded-xl object-cover" />
+                  <span className="text-[9px] font-bold text-slate-500">مستند مرفق</span>
+                  <button onClick={() => setUploadedImage(null)} className="text-red-500 p-1 hover:bg-red-50 rounded-lg"><svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg></button>
+                </div>
+              )}
+              <div className="flex gap-3 bg-white border border-slate-200 rounded-[2rem] p-3 shadow-inner shadow-slate-50">
+                <label className="p-4 bg-slate-50 text-slate-400 rounded-[1.5rem] hover:bg-[#d4af37] hover:text-white transition-all cursor-pointer">
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+                  <input type="file" className="hidden" accept="image/*" onChange={handleFileUpload} />
+                </label>
                 <input 
                   type="text" 
-                  value={input} 
+                  value={input}
                   onChange={(e) => setInput(e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && handleSend()}
-                  placeholder={activeMode === 'chat' ? 'اسأل المستشار القانوني...' : activeMode === 'image' ? 'صف الصورة التي تود توليدها...' : 'صف التعديل المطلوب على المستند المرفوع...'}
-                  className="w-full bg-slate-50 border border-slate-100 rounded-2xl px-8 py-5 text-sm outline-none focus:ring-2 focus:ring-[#d4af37] shadow-inner transition-all"
+                  onKeyDown={(e) => e.key === 'Enter' && handleProcessRequest()}
+                  placeholder={activeTab === 'chat' ? 'اسأل المستشار عن موقف قانوني...' : 'صف المحتوى المرئي المطلوب...'}
+                  className="flex-1 bg-transparent px-4 text-sm outline-none font-medium placeholder:text-slate-300"
                 />
               </div>
-
-              {activeMode === 'chat' && (
-                <button 
-                  onClick={() => setThinkingMode(!thinkingMode)}
-                  className={`p-4 rounded-2xl transition-all ${thinkingMode ? 'bg-[#d4af37] text-[#020617] shadow-lg' : 'bg-slate-100 text-slate-400'}`}
-                  title="وضع التفكير العميق للقضايا المعقدة"
-                >
-                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" /></svg>
-                </button>
-              )}
-
-              <button 
-                onClick={handleSend}
-                disabled={isLoading}
-                className="bg-gradient-to-r from-[#d4af37] to-[#b8960c] text-[#020617] px-10 py-5 rounded-2xl font-black text-xs shadow-2xl hover:scale-105 transition-all active:scale-95 disabled:opacity-50"
-              >
-                إرسال الطلب
-              </button>
-           </div>
+            </div>
+            <button 
+              onClick={handleProcessRequest} 
+              disabled={isLoading || (!input.trim() && !uploadedImage)} 
+              className="bg-[#d4af37] text-white h-[68px] px-10 rounded-[2rem] font-black text-xs hover:scale-105 active:scale-95 transition-all shadow-xl shadow-amber-500/30 disabled:opacity-50 disabled:scale-100"
+            >
+              إرسال الطلب
+            </button>
+          </div>
         </div>
       </div>
     </div>

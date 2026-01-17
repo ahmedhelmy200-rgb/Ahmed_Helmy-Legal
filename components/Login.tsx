@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { ICONS } from '../constants';
 import { UserRole } from '../types';
@@ -38,60 +39,53 @@ const Login: React.FC<LoginProps> = ({ onLogin, clients }) => {
   };
 
   return (
-    <div className="min-h-screen bg-[#020617] flex items-center justify-center p-4 relative overflow-hidden font-sans">
-      <div className="absolute top-0 right-0 w-[600px] h-[600px] bg-[#d4af37] opacity-5 rounded-full -mr-32 -mt-32 blur-[120px] pointer-events-none"></div>
+    <div className="min-h-screen bg-white flex items-center justify-center p-6 relative overflow-hidden font-sans">
+      {/* Decorative Elements */}
+      <div className="absolute top-0 right-0 w-[800px] h-[800px] bg-amber-500/5 rounded-full -mr-40 -mt-40 blur-[150px] pointer-events-none"></div>
+      <div className="absolute bottom-0 left-0 w-[600px] h-[600px] bg-blue-500/5 rounded-full -ml-32 -mb-32 blur-[120px] pointer-events-none"></div>
       
-      <div className="bg-white/5 backdrop-blur-3xl border border-white/10 w-full max-w-md p-10 rounded-[3.5rem] shadow-2xl relative z-10 animate-in fade-in zoom-in duration-700">
-        <div className="flex justify-center mb-10">
-            <div className="w-28 h-28">
+      <div className="w-full max-w-lg bg-white/60 backdrop-blur-3xl border border-slate-100 p-12 rounded-[4rem] shadow-[0_30px_100px_-20px_rgba(0,0,0,0.06)] relative z-10 animate-fade-in">
+        <div className="flex justify-center mb-12">
+            <div className="w-24 h-24">
                 <ICONS.Logo />
             </div>
         </div>
         
-        <div className="text-center mb-10">
-            <h1 className="text-4xl font-black text-white mb-2 tracking-tighter">نظام حلم الذكي</h1>
-            <p className="text-slate-400 text-[9px] font-bold uppercase tracking-[0.4em]">أحمد حلمي للاستشارات القانونية</p>
+        <div className="text-center mb-12">
+            <h1 className="text-4xl font-black text-slate-800 mb-3 tracking-tighter">نظام حلم الذكي <span className="text-[#d4af37]">3.5</span></h1>
+            <p className="text-slate-400 text-[10px] font-black uppercase tracking-[0.4em]">أحمد حلمي للاستشارات القانونية</p>
         </div>
 
-        <div className="flex bg-white/5 p-1.5 rounded-2xl mb-8 border border-white/5 shadow-inner">
-            <button 
-                onClick={() => { setActiveTab('admin'); setError(''); }}
-                className={`flex-1 py-3.5 rounded-xl text-[10px] font-black transition-all duration-300 ${activeTab === 'admin' ? 'bg-[#d4af37] text-[#020617] shadow-lg shadow-[#d4af37]/40' : 'text-slate-400 hover:text-white'}`}
-            >
-                الإدارة
-            </button>
-            <button 
-                onClick={() => { setActiveTab('client'); setError(''); }}
-                className={`flex-1 py-3.5 rounded-xl text-[10px] font-black transition-all duration-300 ${activeTab === 'client' ? 'bg-[#d4af37] text-[#020617] shadow-lg shadow-[#d4af37]/40' : 'text-slate-400 hover:text-white'}`}
-            >
-                الموكلين
-            </button>
-            <button 
-                onClick={() => { setActiveTab('visitor'); setError(''); }}
-                className={`flex-1 py-3.5 rounded-xl text-[10px] font-black transition-all duration-300 ${activeTab === 'visitor' ? 'bg-[#d4af37] text-[#020617] shadow-lg shadow-[#d4af37]/40' : 'text-slate-400 hover:text-white'}`}
-            >
-                زائر
-            </button>
+        <div className="flex bg-slate-50 p-1.5 rounded-[2rem] mb-10 border border-slate-100 shadow-inner">
+            {(['admin', 'client', 'visitor'] as const).map((role) => (
+               <button 
+                  key={role}
+                  onClick={() => { setActiveTab(role); setError(''); }}
+                  className={`flex-1 py-4 rounded-[1.8rem] text-[10px] font-black transition-all duration-500 ${activeTab === role ? 'bg-white text-slate-900 shadow-xl shadow-slate-200/50' : 'text-slate-400 hover:text-slate-600'}`}
+               >
+                  {role === 'admin' ? 'الإدارة' : role === 'client' ? 'الموكلين' : 'زائر'}
+               </button>
+            ))}
         </div>
 
-        <form onSubmit={handleLogin} className="space-y-6">
+        <form onSubmit={handleLogin} className="space-y-8">
             {(activeTab === 'client' || activeTab === 'admin') && (
-                <div className="space-y-2">
-                    <label className="text-[10px] font-black text-slate-400 mr-2 uppercase tracking-widest text-right">البريد الإلكتروني</label>
+                <div className="space-y-3">
+                    <label className="text-[10px] font-black text-slate-400 mr-4 uppercase tracking-widest">البريد الإلكتروني</label>
                     <input 
                         type="text" 
                         required
                         value={email}
                         onChange={(e) => setEmail(e.target.value)}
                         placeholder="example@legal.ae"
-                        className="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-white text-sm outline-none focus:border-[#d4af37] focus:ring-1 focus:ring-[#d4af37]/30 transition-all text-center dir-ltr shadow-inner"
+                        className="w-full bg-slate-50/50 border border-slate-200 rounded-3xl px-8 py-5 text-slate-700 text-sm outline-none focus:bg-white focus:border-[#d4af37] focus:ring-4 focus:ring-amber-500/5 transition-all text-center dir-ltr"
                     />
                 </div>
             )}
 
             {(activeTab === 'admin' || activeTab === 'client') && (
-                <div className="space-y-2">
-                    <label className="text-[10px] font-black text-slate-400 mr-2 uppercase tracking-widest text-right">
+                <div className="space-y-3">
+                    <label className="text-[10px] font-black text-slate-400 mr-4 uppercase tracking-widest">
                         {activeTab === 'admin' ? 'كلمة المرور' : 'رقم الهوية الإماراتية'}
                     </label>
                     <input 
@@ -100,23 +94,23 @@ const Login: React.FC<LoginProps> = ({ onLogin, clients }) => {
                         value={password}
                         onChange={(e) => setPassword(e.target.value)}
                         placeholder="••••••••"
-                        className="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-white text-sm outline-none focus:border-[#d4af37] focus:ring-1 focus:ring-[#d4af37]/30 transition-all text-center dir-ltr shadow-inner"
+                        className="w-full bg-slate-50/50 border border-slate-200 rounded-3xl px-8 py-5 text-slate-700 text-sm outline-none focus:bg-white focus:border-[#d4af37] focus:ring-4 focus:ring-amber-500/5 transition-all text-center dir-ltr"
                     />
                 </div>
             )}
 
-            {error && <p className="text-red-400 text-[10px] font-black text-center mt-2 bg-red-400/10 py-3 rounded-2xl border border-red-400/20">{error}</p>}
+            {error && <div className="bg-red-50 border border-red-100 text-red-500 text-[10px] font-black p-4 rounded-2xl text-center animate-shake">{error}</div>}
 
             <button 
                 type="submit"
-                className="w-full bg-gradient-to-r from-[#d4af37] to-[#b8960c] text-[#020617] py-5 rounded-2xl font-black text-xs shadow-2xl hover:scale-[1.02] active:scale-95 transition-all duration-500"
+                className="w-full bg-slate-900 text-white py-6 rounded-3xl font-black text-xs shadow-2xl shadow-slate-200 hover:bg-[#d4af37] hover:scale-[1.02] active:scale-95 transition-all duration-500"
             >
-                دخول النظام
+                دخول النظام الآمن
             </button>
         </form>
 
-        <div className="mt-10 pt-6 border-t border-white/5 text-center">
-            <p className="text-[9px] text-slate-600 font-bold tracking-[0.5em] uppercase">نظام حلم الذكي - HELM &copy; 2024</p>
+        <div className="mt-12 pt-8 border-t border-slate-50 text-center">
+            <p className="text-[9px] text-slate-300 font-bold tracking-[0.5em] uppercase">HELM &copy; PREMIUM LEGAL SYSTEM 2025</p>
         </div>
       </div>
     </div>

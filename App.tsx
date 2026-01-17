@@ -6,9 +6,11 @@ import CaseManagement from './components/CaseManagement';
 import ClientManagement from './components/ClientManagement';
 import Accounting from './components/Accounting';
 import LawsLibrary from './components/LawsLibrary';
+import AdminSettings from './components/AdminSettings';
 import Login from './components/Login';
+import Sidebar from './components/Sidebar';
 import { db } from './services/database';
-import { LegalCase, Client, Invoice, UserRole, Expense, PaymentReceipt } from './types';
+import { LegalCase, Client, Invoice, UserRole, Expense, PaymentReceipt, SystemSettings, FutureDebt } from './types';
 import { ICONS } from './constants';
 
 const App: React.FC = () => {
@@ -17,18 +19,21 @@ const App: React.FC = () => {
   const [currentClientId, setCurrentClientId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState('dashboard');
   const [isLoading, setIsLoading] = useState(true);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   
   const [cases, setCases] = useState<LegalCase[]>([]);
   const [clients, setClients] = useState<Client[]>([]);
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [receipts, setReceipts] = useState<PaymentReceipt[]>([]);
-
-  // محاكاة طلبات من الموقع الإلكتروني
-  const [webLeads] = useState([
-    { id: 1, name: 'سالم الشامسي', type: 'استشارة تجارية', date: 'اليوم', status: 'جديد' },
-    { id: 2, name: 'فاطمة الظاهري', type: 'أحوال شخصية', date: 'أمس', status: 'قيد المراجعة' }
-  ]);
+  const [futureDebts, setFutureDebts] = useState<FutureDebt[]>([]);
+  
+  const [settings, setSettings] = useState<SystemSettings>({
+    primaryColor: '#d4af37',
+    language: 'ar',
+    logo: '',
+    stamp: ''
+  });
 
   useEffect(() => {
     const loadData = async () => {
@@ -47,8 +52,11 @@ const App: React.FC = () => {
         setInvoices(invoicesData || []);
         setExpenses(expensesData || []);
         setReceipts(receiptsData || []);
+        
+        const savedSettings = localStorage.getItem('helm_settings');
+        if (savedSettings) setSettings(JSON.parse(savedSettings));
       } catch (error) {
-        console.error("فشل المزامنة:", error);
+        console.error("فشل مزامنة البيانات:", error);
       } finally {
         setIsLoading(false);
       }
@@ -60,7 +68,7 @@ const App: React.FC = () => {
     setIsAuthenticated(true);
     setUserRole(role);
     if (clientId) setCurrentClientId(clientId);
-    setActiveTab('dashboard'); // دائماً التوجيه للرئيسية بعد الدخول
+    setActiveTab('dashboard');
   };
 
   const handleLogout = () => {
@@ -69,100 +77,73 @@ const App: React.FC = () => {
     setCurrentClientId(null);
   };
 
-  const handleAddCase = async (newCase: LegalCase) => {
-    await db.save('cases', newCase);
-    setCases(prev => [newCase, ...prev]);
+  const updateSettings = (newSettings: SystemSettings) => {
+    setSettings(newSettings);
+    localStorage.setItem('helm_settings', JSON.stringify(newSettings));
   };
 
-  const handleUpdateCase = async (updatedCase: LegalCase) => {
-    await db.update('cases', updatedCase.id, updatedCase);
-    setCases(prev => prev.map(c => c.id === updatedCase.id ? updatedCase : c));
-  };
-
-  const handleAddClient = async (newClient: Client) => {
-    await db.save('clients', newClient);
-    setClients(prev => [...prev, newClient]);
-  };
-
-  const handleUpdateClient = async (updatedClient: Client) => {
-    await db.update('clients', updatedClient.id, updatedClient);
-    setClients(prev => prev.map(c => c.id === updatedClient.id ? updatedClient : c));
-  };
-
-  const handleAddInvoice = async (newInvoice: Invoice) => {
-    await db.save('invoices', newInvoice);
-    setInvoices(prev => [newInvoice, ...prev]);
-  };
-
-  const handleUpdateInvoice = async (updatedInvoice: Invoice) => {
-    await db.update('invoices', updatedInvoice.id, updatedInvoice);
-    setInvoices(prev => prev.map(inv => inv.id === updatedInvoice.id ? updatedInvoice : inv));
-  };
-
-  const handleAddExpense = async (newExp: Expense) => {
-    await db.save('expenses', newExp);
-    setExpenses(prev => [newExp, ...prev]);
-  };
-
-  const handleAddReceipt = async (newReceipt: PaymentReceipt) => {
-    await db.save('receipts', newReceipt);
-    setReceipts(prev => [newReceipt, ...prev]);
-  };
-
-  // وظيفة الرجوع للقائمة الرئيسية
   const goBack = () => setActiveTab('dashboard');
 
   if (isLoading) {
     return (
-      <div className="h-screen flex flex-col items-center justify-center bg-[#0f172a] text-white">
-        <div className="w-48 h-24 mb-8">
-            <ICONS.Logo />
+      <div className="h-screen flex flex-col items-center justify-center bg-white text-slate-800">
+        <div className="w-48 h-24 mb-10 flex items-center justify-center p-4">
+            <img src={settings.logo || "https://img.icons8.com/fluency/240/scales.png"} className="w-full h-full object-contain animate-pulse" />
         </div>
-        <div className="w-64 h-2 bg-white/5 rounded-full overflow-hidden border border-white/10">
+        <div className="w-64 h-1.5 bg-slate-50 rounded-full overflow-hidden border border-slate-100">
             <div className="h-full bg-[#d4af37] animate-progress"></div>
         </div>
-        <p className="mt-4 text-[10px] font-black tracking-[0.3em] text-[#d4af37] uppercase">Linking to ahmed-helmy-legal.vercel.app...</p>
+        <p className="mt-6 text-[10px] font-black tracking-[0.4em] text-slate-400 uppercase">HELM SMART PORTAL IS LOADING...</p>
       </div>
     );
   }
 
   if (!isAuthenticated) return <Login onLogin={handleLogin} clients={clients} />;
   
-  const displayCases = userRole === 'client' ? cases.filter(c => c.clientId === currentClientId) : cases;
-  const displayInvoices = userRole === 'client' ? invoices.filter(i => i.clientId === currentClientId) : invoices;
-  const displayReceipts = userRole === 'client' ? receipts.filter(r => r.clientId === currentClientId) : receipts;
-
   return (
-    <div className="bg-[#f8fafc] min-h-screen relative overflow-x-hidden dir-rtl font-sans">
-      <main className="min-h-screen">
+    <div className="bg-white min-h-screen relative overflow-x-hidden flex flex-col lg:flex-row-reverse dir-rtl font-sans">
+      <Sidebar 
+        activeTab={activeTab} 
+        setActiveTab={setActiveTab} 
+        userRole={userRole} 
+        isOpen={isSidebarOpen} 
+        onClose={() => setIsSidebarOpen(false)} 
+        onLogout={handleLogout}
+        logo={settings.logo}
+      />
+
+      <main className="flex-1 lg:mr-72 min-h-screen">
+        {/* Mobile Header */}
+        <div className="lg:hidden p-4 flex justify-between items-center border-b border-slate-100 bg-white sticky top-0 z-30">
+          <div className="w-10 h-10"><ICONS.Logo /></div>
+          <button onClick={() => setIsSidebarOpen(true)} className="p-3 bg-slate-50 rounded-xl">
+            <svg className="w-6 h-6 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 12h16m-7 6h7" /></svg>
+          </button>
+        </div>
+
         <div className="page-transition min-h-screen">
-          
-          {/* Main Dashboard / Home Menu */}
           {activeTab === 'dashboard' && (
             <Dashboard 
               cases={cases} 
               clients={clients} 
               invoices={invoices} 
               userRole={userRole} 
-              webLeads={webLeads} 
               onNavigate={setActiveTab}
               onLogout={handleLogout}
+              logo={settings.logo}
             />
           )}
 
-          {/* Sub Sections with Back Button */}
-          {activeTab === 'ai-consultant' && (
-            <AIConsultant onBack={goBack} />
-          )}
+          {activeTab === 'ai-consultant' && <AIConsultant onBack={goBack} />}
 
           {activeTab === 'cases' && (
             <CaseManagement 
-              cases={displayCases} 
+              cases={userRole === 'client' ? cases.filter(c => c.clientId === currentClientId) : cases} 
               clients={clients} 
               userRole={userRole} 
-              onAddCase={handleAddCase} 
-              onUpdateCase={handleUpdateCase} 
-              onAddClient={handleAddClient} 
+              onAddCase={(c) => setCases([c, ...cases])} 
+              onUpdateCase={(c) => setCases(cases.map(i => i.id === c.id ? c : i))} 
+              onAddClient={(c) => setClients([...clients, c])}
               onBack={goBack}
             />
           )}
@@ -171,42 +152,38 @@ const App: React.FC = () => {
             <ClientManagement 
               clients={clients} 
               cases={cases} 
-              onAddClient={handleAddClient} 
-              onUpdateClient={handleUpdateClient} 
+              invoices={invoices}
+              receipts={receipts}
+              onAddClient={(c) => setClients([...clients, c])} 
+              onUpdateClient={(c) => setClients(clients.map(i => i.id === c.id ? c : i))} 
               onBack={goBack}
             />
           )}
 
           {activeTab === 'accounting' && (
             <Accounting 
-              invoices={displayInvoices} 
-              cases={displayCases} 
-              clients={clients} 
-              expenses={expenses} 
-              receipts={displayReceipts} 
-              onAddInvoice={handleAddInvoice} 
-              onUpdateInvoice={handleUpdateInvoice} 
-              onAddExpense={handleAddExpense} 
-              onAddReceipt={handleAddReceipt} 
-              userRole={userRole} 
+              invoices={userRole === 'client' ? invoices.filter(i => i.clientId === currentClientId) : invoices} 
+              expenses={expenses}
+              futureDebts={futureDebts}
+              clients={clients}
+              cases={cases}
+              onAddExpense={(e) => setExpenses([e, ...expenses])}
+              onAddFutureDebt={(d) => setFutureDebts([d, ...futureDebts])}
               onBack={goBack}
             />
           )}
 
-          {activeTab === 'laws' && (
-            <LawsLibrary onBack={goBack} />
+          {activeTab === 'laws' && <LawsLibrary onBack={goBack} />}
+
+          {activeTab === 'settings' && (
+            <AdminSettings settings={settings} onUpdateSettings={updateSettings} onBack={goBack} />
           )}
         </div>
       </main>
 
       <style>{`
-        @keyframes progress {
-          0% { width: 0%; }
-          100% { width: 100%; }
-        }
-        .animate-progress {
-          animation: progress 2s ease-in-out infinite;
-        }
+        @keyframes progress { 0% { width: 0%; } 100% { width: 100%; } }
+        .animate-progress { animation: progress 2.5s ease-in-out infinite; }
       `}</style>
     </div>
   );

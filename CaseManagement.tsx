@@ -61,7 +61,10 @@ const CaseManagement: React.FC<CaseManagementProps> = ({ cases, clients, userRol
       documents: [],
       comments: [],
       activities: [],
-      isArchived: false
+      isArchived: false,
+      opponentName: newCaseForm.opponentName || '',
+      court: newCaseForm.court || '',
+      caseNumber: newCaseForm.caseNumber || ''
     };
 
     const creationActivity: CaseActivity = {
@@ -82,7 +85,8 @@ const CaseManagement: React.FC<CaseManagementProps> = ({ cases, clients, userRol
   const handleStatusChange = (newStatus: CaseStatus) => {
     if (!selectedCase || selectedCase.status === newStatus) return;
     
-    let updatedCase = { ...selectedCase, status: newStatus };
+    // Explicitly type as LegalCase to avoid narrowing issues
+    let updatedCase: LegalCase = { ...selectedCase, status: newStatus };
     updatedCase = logActivity(updatedCase, 'status_change', `تغيير حالة الملف من ${selectedCase.status} إلى ${newStatus}`);
     
     onUpdateCase(updatedCase);
@@ -100,7 +104,8 @@ const CaseManagement: React.FC<CaseManagementProps> = ({ cases, clients, userRol
       date: new Date().toLocaleDateString('ar-AE')
     };
 
-    let updatedCase = { ...selectedCase, comments: [...(selectedCase.comments || []), newComment] };
+    // Fix: Explicitly type updatedCase as LegalCase to prevent narrowing to required 'comments'
+    let updatedCase: LegalCase = { ...selectedCase, comments: [...(selectedCase.comments || []), newComment] };
     updatedCase = logActivity(updatedCase, 'comment_added', 'إضافة ملاحظة جديدة على الملف');
     
     onUpdateCase(updatedCase);
@@ -118,7 +123,8 @@ const CaseManagement: React.FC<CaseManagementProps> = ({ cases, clients, userRol
 
   const handleArchiveCase = (c: LegalCase) => {
     if (!canArchive) return;
-    let updatedCase = { ...c, status: CaseStatus.ARCHIVED, isArchived: true };
+    // Explicitly type as LegalCase to avoid narrowing issues
+    let updatedCase: LegalCase = { ...c, status: CaseStatus.ARCHIVED, isArchived: true };
     updatedCase = logActivity(updatedCase, 'info_update', 'تم أرشفة القضية وإغلاق الملف');
     onUpdateCase(updatedCase);
     setSelectedCase(null);

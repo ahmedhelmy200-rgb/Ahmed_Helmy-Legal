@@ -22,13 +22,8 @@ const CaseManagement: React.FC<CaseManagementProps> = ({ cases, clients, userRol
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [analysisResult, setAnalysisResult] = useState<string | null>(null);
 
-  // حالة إضافة موكل سريع
   const [isAddingQuickClient, setIsAddingQuickClient] = useState(false);
-  const [quickClientForm, setQuickClientForm] = useState({
-    name: '',
-    phone: '',
-    emiratesId: ''
-  });
+  const [quickClientForm, setQuickClientForm] = useState({ name: '', phone: '', emiratesId: '' });
 
   const [newCaseForm, setNewCaseForm] = useState<Partial<LegalCase>>({
     category: CaseCategory.CIVIL,
@@ -42,7 +37,6 @@ const CaseManagement: React.FC<CaseManagementProps> = ({ cases, clients, userRol
   const canModify = userRole === 'admin' || userRole === 'staff';
   const canArchive = userRole === 'admin';
 
-  // عند تغيير التصنيف الرئيسي، تصفير التصنيف الفرعي
   useEffect(() => {
     if (newCaseForm.category) {
        setNewCaseForm(prev => ({ ...prev, subCategory: '' }));
@@ -67,31 +61,9 @@ const CaseManagement: React.FC<CaseManagementProps> = ({ cases, clients, userRol
     };
   };
 
-  const handleAddQuickClient = () => {
-    if (!quickClientForm.name || !quickClientForm.phone) return;
-
-    const newClient: Client = {
-      id: Math.random().toString(36).substr(2, 9),
-      name: quickClientForm.name,
-      phone: quickClientForm.phone,
-      emiratesId: quickClientForm.emiratesId,
-      email: '',
-      type: 'Individual',
-      documents: [],
-      totalCases: 0,
-      createdAt: new Date().toLocaleDateString('ar-AE')
-    };
-
-    onAddClient(newClient);
-    setNewCaseForm(prev => ({ ...prev, clientId: newClient.id }));
-    setIsAddingQuickClient(false);
-    setQuickClientForm({ name: '', phone: '', emiratesId: '' });
-  };
-
   const handleAddCase = (e: React.FormEvent) => {
     e.preventDefault();
     const client = clients.find(c => c.id === newCaseForm.clientId);
-    
     let caseToAdd: LegalCase = {
       ...newCaseForm as LegalCase,
       id: Math.random().toString(36).substr(2, 9),
@@ -104,35 +76,21 @@ const CaseManagement: React.FC<CaseManagementProps> = ({ cases, clients, userRol
       subCategory: newCaseForm.subCategory || 'عام',
       assignedLawyer: 'المستشار أحمد حلمي'
     };
-
-    const creationActivity: CaseActivity = {
-      id: Math.random().toString(36).substr(2, 9),
-      type: 'info_update',
-      description: `تم فتح الملف بتصنيف ${caseToAdd.category} - ${caseToAdd.subCategory}`,
-      userRole: userRole,
-      userName: userRole === 'admin' ? 'إدارة المكتب' : (userRole === 'staff' ? 'SAMAR' : client?.name || 'مستخدم'),
-      timestamp: new Date().toLocaleDateString('ar-AE', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
-    };
-    caseToAdd.activities = [creationActivity];
-
     onAddCase(caseToAdd);
     setShowAddModal(false);
-    setNewCaseForm({ category: CaseCategory.CIVIL, subCategory: '', status: CaseStatus.ACTIVE, totalFee: 0, paidAmount: 0, clientId: '' });
   };
 
   const handleStatusChange = (newStatus: CaseStatus) => {
     if (!selectedCase || selectedCase.status === newStatus) return;
-    
-    let updatedCase = { ...selectedCase, status: newStatus };
+    // Explicitly type as LegalCase to avoid narrowing issues
+    let updatedCase: LegalCase = { ...selectedCase, status: newStatus };
     updatedCase = logActivity(updatedCase, 'status_change', `تغيير حالة الملف من ${selectedCase.status} إلى ${newStatus}`);
-    
     onUpdateCase(updatedCase);
     setSelectedCase(updatedCase);
   };
 
   const handleAddComment = () => {
     if (!selectedCase || !commentInput.trim()) return;
-
     const newComment: CaseComment = {
       id: Math.random().toString(36).substr(2, 9),
       authorRole: userRole,
@@ -140,48 +98,33 @@ const CaseManagement: React.FC<CaseManagementProps> = ({ cases, clients, userRol
       text: commentInput,
       date: new Date().toLocaleDateString('ar-AE')
     };
-
-    let updatedCase = { ...selectedCase, comments: [...(selectedCase.comments || []), newComment] };
+    // Fix: Explicitly type updatedCase as LegalCase to prevent narrowing to required 'comments'
+    let updatedCase: LegalCase = { ...selectedCase, comments: [...(selectedCase.comments || []), newComment] };
     updatedCase = logActivity(updatedCase, 'comment_added', 'إضافة ملاحظة جديدة على الملف');
-    
     onUpdateCase(updatedCase);
     setSelectedCase(updatedCase);
     setCommentInput('');
   };
 
-  const handleAnalyze = async () => {
+  const handleGetSmartTip = async () => {
     if (!selectedCase) return;
     setIsAnalyzing(true);
-    const result = await analyzeCaseStrategy(selectedCase.title, selectedCase.court, selectedCase.status, selectedCase.opponentName);
+    setActiveDetailTab('strategy');
+    const result = await analyzeCaseStrategy(
+        `القضية: ${selectedCase.title}, المحكمة: ${selectedCase.court}, الخصم: ${selectedCase.opponentName}, الحالة: ${selectedCase.status}`,
+        selectedCase.court,
+        selectedCase.status,
+        selectedCase.opponentName
+    );
     setAnalysisResult(result);
     setIsAnalyzing(false);
   };
 
-  const handleArchiveCase = (c: LegalCase) => {
-    if (!canArchive) return;
-    let updatedCase = { ...c, status: CaseStatus.ARCHIVED, isArchived: true };
-    updatedCase = logActivity(updatedCase, 'info_update', 'تم أرشفة القضية وإغلاق الملف');
-    onUpdateCase(updatedCase);
-    setSelectedCase(null);
-  };
-
   const getActivityIcon = (type: CaseActivity['type']) => {
     switch (type) {
-      case 'status_change': return (
-        <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 shadow-sm border border-blue-200">
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
-        </div>
-      );
-      case 'comment_added': return (
-        <div className="w-8 h-8 rounded-full bg-green-100 flex items-center justify-center text-green-600 shadow-sm border border-green-200">
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" /></svg>
-        </div>
-      );
-      default: return (
-        <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-slate-600 shadow-sm border border-slate-200">
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-        </div>
-      );
+      case 'status_change': return <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-600"><svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg></div>;
+      case 'comment_added': return <div className="w-8 h-8 rounded-full bg-green-100 flex items-center justify-center text-green-600"><svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" /></svg></div>;
+      default: return <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-slate-600"><svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg></div>;
     }
   };
 
@@ -194,7 +137,7 @@ const CaseManagement: React.FC<CaseManagementProps> = ({ cases, clients, userRol
            </button>
            <div>
               <h2 className="text-3xl font-black text-slate-800 tracking-tight">إدارة القضايا</h2>
-              <p className="text-slate-500 font-medium">تصنيف البلاغات، الأرشفة، والقرارات القضائية</p>
+              <p className="text-slate-500 font-medium">تصنيف البلاغات، الأرشفة، والقرارات الذكية</p>
            </div>
         </div>
         {canModify && (
@@ -213,10 +156,8 @@ const CaseManagement: React.FC<CaseManagementProps> = ({ cases, clients, userRol
             <tr>
               <th className="px-6 py-4">رقم القضية</th>
               <th className="px-6 py-4">التصنيف</th>
-              <th className="px-6 py-4">النوع</th>
               <th className="px-6 py-4">الموكل</th>
               <th className="px-6 py-4">الأتعاب</th>
-              <th className="px-6 py-4">المدفوع</th>
               <th className="px-6 py-4">الحالة</th>
               <th className="px-6 py-4 text-center">إجراءات</th>
             </tr>
@@ -228,14 +169,11 @@ const CaseManagement: React.FC<CaseManagementProps> = ({ cases, clients, userRol
                 <td className="px-6 py-4">
                   <span className="bg-blue-50 text-blue-700 px-3 py-1 rounded-full text-[10px] font-bold border border-blue-100">{c.category}</span>
                 </td>
-                <td className="px-6 py-4 text-xs text-slate-500">{c.subCategory || '-'}</td>
                 <td className="px-6 py-4 text-sm font-bold text-slate-600">{c.clientName}</td>
                 <td className="px-6 py-4 text-sm font-bold text-slate-700">{(c.totalFee || 0).toLocaleString()} د.إ</td>
-                <td className="px-6 py-4 text-sm font-bold text-green-600">{(c.paidAmount || 0).toLocaleString()} د.إ</td>
                 <td className="px-6 py-4">
                    <span className={`px-3 py-1 rounded-full text-[10px] font-black ${
                      c.status === CaseStatus.ACTIVE ? 'bg-green-50 text-green-700' :
-                     c.status === CaseStatus.PENDING ? 'bg-amber-50 text-amber-700' :
                      'bg-slate-100 text-slate-600'
                    }`}>{c.status}</span>
                 </td>
@@ -251,321 +189,143 @@ const CaseManagement: React.FC<CaseManagementProps> = ({ cases, clients, userRol
         </table>
       </div>
 
-      {/* Add Case Modal */}
-      {showAddModal && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white w-full max-w-xl rounded-[2.5rem] p-10 shadow-2xl custom-scroll overflow-y-auto max-h-[90vh]">
-            <h3 className="text-2xl font-black mb-8">تسجيل بلاغ/قضية جديدة</h3>
-            <form onSubmit={handleAddCase} className="grid grid-cols-2 gap-6">
-              <div className="col-span-2">
-                <label className="block text-xs font-bold text-slate-400 mb-2">رقم القضية / البلاغ</label>
-                <input required className="w-full border border-slate-200 rounded-xl px-5 py-3 outline-none focus:border-[#d4af37]" onChange={e => setNewCaseForm({...newCaseForm, caseNumber: e.target.value})} />
-              </div>
-              <div className="col-span-2">
-                <label className="block text-xs font-bold text-slate-400 mb-2">عنوان القضية</label>
-                <input required className="w-full border border-slate-200 rounded-xl px-5 py-3 outline-none focus:border-[#d4af37]" onChange={e => setNewCaseForm({...newCaseForm, title: e.target.value})} />
-              </div>
-
-              {/* Case Category Tree */}
-              <div className="col-span-1">
-                <label className="block text-xs font-bold text-slate-400 mb-2">تصنيف البلاغ (النوع الرئيسي)</label>
-                <select 
-                  className="w-full border border-slate-200 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-[#d4af37] text-sm"
-                  value={newCaseForm.category}
-                  onChange={e => setNewCaseForm({...newCaseForm, category: e.target.value as CaseCategory})}
-                >
-                  {Object.values(CaseCategory).map(cat => <option key={cat} value={cat}>{cat}</option>)}
-                </select>
-              </div>
-
-              <div className="col-span-1">
-                <label className="block text-xs font-bold text-slate-400 mb-2">نوع الدعوى (التفصيل)</label>
-                <select 
-                  className="w-full border border-slate-200 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-[#d4af37] text-sm"
-                  value={newCaseForm.subCategory}
-                  onChange={e => setNewCaseForm({...newCaseForm, subCategory: e.target.value})}
-                >
-                  <option value="">اختر نوع الدعوى...</option>
-                  {newCaseForm.category && CASE_CATEGORIES_TREE[newCaseForm.category as CaseCategory]?.map(sub => (
-                    <option key={sub} value={sub}>{sub}</option>
-                  ))}
-                </select>
-              </div>
-
-              {/* Client Selection & Quick Add */}
-              <div className="col-span-2 bg-slate-50 p-4 rounded-2xl border border-slate-100">
-                <div className="flex justify-between items-center mb-2">
-                   <label className="block text-xs font-bold text-slate-400">الموكل</label>
-                   {!isAddingQuickClient && (
-                     <button type="button" onClick={() => setIsAddingQuickClient(true)} className="text-[10px] text-[#d4af37] font-black underline hover:text-amber-600">
-                        + إضافة موكل جديد
-                     </button>
-                   )}
-                </div>
-
-                {!isAddingQuickClient ? (
-                  <select 
-                    className="w-full border border-slate-200 rounded-xl px-5 py-3 outline-none focus:ring-2 focus:ring-[#d4af37] bg-white"
-                    value={newCaseForm.clientId}
-                    onChange={e => setNewCaseForm({...newCaseForm, clientId: e.target.value})}
-                    required
-                  >
-                    <option value="">اختر موكل مسجل...</option>
-                    {clients.map(cl => <option key={cl.id} value={cl.id}>{cl.name}</option>)}
-                  </select>
-                ) : (
-                  <div className="space-y-3 animate-in fade-in slide-in-from-top-2">
-                     <input 
-                        placeholder="اسم الموكل الجديد" 
-                        className="w-full border border-slate-200 rounded-xl px-4 py-2 text-sm focus:border-[#d4af37] outline-none"
-                        value={quickClientForm.name}
-                        onChange={e => setQuickClientForm({...quickClientForm, name: e.target.value})}
-                     />
-                     <div className="flex gap-2">
-                        <input 
-                            placeholder="رقم الهاتف" 
-                            className="flex-1 border border-slate-200 rounded-xl px-4 py-2 text-sm focus:border-[#d4af37] outline-none"
-                            value={quickClientForm.phone}
-                            onChange={e => setQuickClientForm({...quickClientForm, phone: e.target.value})}
-                        />
-                        <input 
-                            placeholder="رقم الهوية" 
-                            className="flex-1 border border-slate-200 rounded-xl px-4 py-2 text-sm focus:border-[#d4af37] outline-none"
-                            value={quickClientForm.emiratesId}
-                            onChange={e => setQuickClientForm({...quickClientForm, emiratesId: e.target.value})}
-                        />
-                     </div>
-                     <div className="flex gap-2">
-                        <button type="button" onClick={handleAddQuickClient} className="flex-1 bg-[#d4af37] text-white py-2 rounded-xl text-xs font-black">حفظ وربط بالقضية</button>
-                        <button type="button" onClick={() => setIsAddingQuickClient(false)} className="px-4 bg-white border border-slate-200 text-slate-500 rounded-xl text-xs font-bold">إلغاء</button>
-                     </div>
-                  </div>
-                )}
-              </div>
-              
-              <div className="col-span-2">
-                <label className="block text-xs font-bold text-slate-400 mb-2">اسم الخصم</label>
-                <input className="w-full border border-slate-200 rounded-xl px-5 py-3 text-sm outline-none" onChange={e => setNewCaseForm({...newCaseForm, opponentName: e.target.value})} />
-              </div>
-
-              <div className="col-span-2 flex gap-4 mt-4">
-                <button type="button" onClick={() => setShowAddModal(false)} className="flex-1 font-bold text-slate-400">إلغاء</button>
-                <button type="submit" className="flex-1 bg-[#1a1a2e] text-white py-4 rounded-2xl font-black shadow-xl">تسجيل القضية</button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* Case Archive/Details Drawer */}
       {selectedCase && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-end">
           <div className="bg-white w-full max-w-2xl h-full shadow-2xl flex flex-col animate-in slide-in-from-left duration-300">
-            {/* Header */}
             <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-[#1a1a2e] text-white">
               <div>
                 <h3 className="text-xl font-black">{selectedCase.title}</h3>
-                <p className="text-xs text-slate-400 mt-1">رقم الملف: {selectedCase.caseNumber}</p>
+                <p className="text-xs text-slate-400">رقم الملف: {selectedCase.caseNumber}</p>
               </div>
               <button onClick={() => setSelectedCase(null)} className="p-2 hover:bg-white/10 rounded-full transition-colors">
                 <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path></svg>
               </button>
             </div>
 
-            {/* Tabs */}
-            <div className="flex border-b border-slate-100 bg-slate-50 px-6 overflow-x-auto">
+            <div className="flex border-b border-slate-100 bg-slate-50 px-6 items-center">
+                <button onClick={() => setActiveDetailTab('details')} className={`px-4 py-4 text-xs font-bold border-b-2 transition-colors ${activeDetailTab === 'details' ? 'border-[#d4af37] text-[#1a1a2e]' : 'border-transparent text-slate-400'}`}>التفاصيل</button>
+                <button onClick={() => setActiveDetailTab('comments')} className={`px-4 py-4 text-xs font-bold border-b-2 transition-colors ${activeDetailTab === 'comments' ? 'border-[#d4af37] text-[#1a1a2e]' : 'border-transparent text-slate-400'}`}>الملاحظات</button>
+                <button onClick={() => setActiveDetailTab('activities')} className={`px-4 py-4 text-xs font-bold border-b-2 transition-colors ${activeDetailTab === 'activities' ? 'border-[#d4af37] text-[#1a1a2e]' : 'border-transparent text-slate-400'}`}>النشاطات</button>
+                
+                {/* AI Tip Button next to tabs */}
                 <button 
-                  onClick={() => setActiveDetailTab('details')}
-                  className={`px-4 py-4 text-xs font-bold border-b-2 transition-colors whitespace-nowrap ${activeDetailTab === 'details' ? 'border-[#d4af37] text-[#1a1a2e]' : 'border-transparent text-slate-400'}`}
+                  onClick={handleGetSmartTip}
+                  disabled={isAnalyzing}
+                  className="mr-auto flex items-center gap-2 bg-gradient-to-r from-amber-500 to-amber-700 text-white px-4 py-2 rounded-xl text-[10px] font-black shadow-lg hover:scale-105 active:scale-95 transition-all disabled:opacity-50"
                 >
-                  تفاصيل الملف
+                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
+                  {isAnalyzing ? 'جاري التحليل...' : 'استراتيجية ذكية'}
                 </button>
-                <button 
-                  onClick={() => setActiveDetailTab('comments')}
-                  className={`px-4 py-4 text-xs font-bold border-b-2 transition-colors whitespace-nowrap ${activeDetailTab === 'comments' ? 'border-[#d4af37] text-[#1a1a2e]' : 'border-transparent text-slate-400'}`}
-                >
-                  الملاحظات ({selectedCase.comments?.length || 0})
-                </button>
-                <button 
-                  onClick={() => { setActiveDetailTab('activities'); }}
-                  className={`px-4 py-4 text-xs font-bold border-b-2 transition-colors whitespace-nowrap ${activeDetailTab === 'activities' ? 'border-[#d4af37] text-[#1a1a2e]' : 'border-transparent text-slate-400'}`}
-                >
-                  سجل النشاطات
-                </button>
-                {canModify && (
-                  <button 
-                    onClick={() => { setActiveDetailTab('strategy'); if(!analysisResult) handleAnalyze(); }}
-                    className={`px-4 py-4 text-xs font-bold border-b-2 transition-colors flex items-center gap-2 whitespace-nowrap ${activeDetailTab === 'strategy' ? 'border-[#d4af37] text-[#1a1a2e]' : 'border-transparent text-slate-400'}`}
-                  >
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
-                    تحليل ذكي
-                  </button>
-                )}
             </div>
             
             <div className="flex-1 overflow-y-auto custom-scroll p-6 space-y-6">
                 {activeDetailTab === 'details' && (
-                  <>
-                    <section className="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm">
-                      <div className="flex justify-between items-start mb-4">
-                         <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">بيانات القضية</h4>
-                         {canModify && (
-                            <select 
-                              value={selectedCase.status}
-                              onChange={(e) => handleStatusChange(e.target.value as CaseStatus)}
-                              className="bg-slate-50 border border-slate-200 rounded-lg px-2 py-1 text-xs font-bold outline-none focus:border-[#d4af37]"
-                            >
-                              {Object.values(CaseStatus).map(s => <option key={s} value={s}>{s}</option>)}
-                            </select>
-                         )}
-                      </div>
-                      <div className="grid grid-cols-2 gap-4 text-sm mb-6">
-                         <div>
-                            <p className="text-slate-400 text-xs">التصنيف الرئيسي</p>
-                            <p className="font-bold text-slate-700">{selectedCase.category}</p>
-                         </div>
-                         <div>
-                            <p className="text-slate-400 text-xs">نوع الدعوى</p>
-                            <p className="font-bold text-[#d4af37]">{selectedCase.subCategory || 'عام'}</p>
-                         </div>
-                         <div>
-                            <p className="text-slate-400 text-xs">الموكل</p>
-                            <p className="font-bold text-slate-700">{selectedCase.clientName}</p>
-                         </div>
-                         <div>
-                            <p className="text-slate-400 text-xs">الخصم</p>
-                            <p className="font-bold text-slate-700">{selectedCase.opponentName || 'غير محدد'}</p>
-                         </div>
-                         <div className="col-span-2">
-                            <p className="text-slate-400 text-xs">المحكمة المختصة</p>
-                            <p className="font-bold text-slate-700">{selectedCase.court || 'غير محدد'}</p>
-                         </div>
-                      </div>
-
-                      {/* ملخص مالي من الحسابات */}
-                      <div className="pt-6 border-t border-slate-50">
-                         <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4">الموقف المالي للملف</h4>
-                         <div className="grid grid-cols-2 gap-4">
-                            <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100">
-                               <p className="text-[10px] font-black text-slate-400 uppercase mb-1">إجمالي الأتعاب</p>
-                               <p className="text-xl font-black text-slate-800">{(selectedCase.totalFee || 0).toLocaleString()} <span className="text-xs">د.إ</span></p>
+                  <section className="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm">
+                    <div className="grid grid-cols-2 gap-4 text-sm">
+                       <div><p className="text-slate-400 text-xs">التصنيف</p><p className="font-bold">{selectedCase.category}</p></div>
+                       <div><p className="text-slate-400 text-xs">الموكل</p><p className="font-bold">{selectedCase.clientName}</p></div>
+                       <div><p className="text-slate-400 text-xs">الخصم</p><p className="font-bold">{selectedCase.opponentName || '-'}</p></div>
+                       <div><p className="text-slate-400 text-xs">المحكمة</p><p className="font-bold">{selectedCase.court || '-'}</p></div>
+                       <div className="col-span-2 pt-4 border-t border-slate-50">
+                          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">الموقف المالي</p>
+                          <div className="flex gap-4">
+                            <div className="flex-1 bg-slate-50 p-3 rounded-xl border border-slate-100">
+                               <p className="text-[9px] text-slate-500">الأتعاب</p>
+                               <p className="font-black">{(selectedCase.totalFee || 0).toLocaleString()} د.إ</p>
                             </div>
-                            <div className="bg-green-50/50 p-4 rounded-2xl border border-green-100">
-                               <p className="text-[10px] font-black text-green-600 uppercase mb-1">المبالغ المحصلة</p>
-                               <p className="text-xl font-black text-green-700">{(selectedCase.paidAmount || 0).toLocaleString()} <span className="text-xs">د.إ</span></p>
+                            <div className="flex-1 bg-green-50 p-3 rounded-xl border border-green-100">
+                               <p className="text-[9px] text-green-600">المحصل</p>
+                               <p className="font-black text-green-700">{(selectedCase.paidAmount || 0).toLocaleString()} د.إ</p>
                             </div>
-                            <div className="col-span-2 flex items-center gap-3 px-4 py-2 bg-amber-50 rounded-xl border border-amber-100">
-                               <div className="w-2 h-2 rounded-full bg-amber-500 animate-pulse"></div>
-                               <p className="text-xs font-bold text-amber-700">
-                                 المتبقي بذمة الموكل: {((selectedCase.totalFee || 0) - (selectedCase.paidAmount || 0)).toLocaleString()} د.إ
-                               </p>
-                            </div>
-                         </div>
-                      </div>
-                    </section>
-
-                    {canArchive && (
-                      <div className="pt-8 mt-auto border-t border-slate-100">
-                        <button 
-                          onClick={() => handleArchiveCase(selectedCase)}
-                          className="w-full py-4 bg-amber-50 text-amber-700 rounded-2xl font-bold text-xs hover:bg-amber-100 transition-all border border-amber-100"
-                        >
-                          نقل إلى الأرشيف النهائي
-                        </button>
-                      </div>
-                    )}
-                  </>
+                          </div>
+                       </div>
+                    </div>
+                  </section>
                 )}
 
                 {activeDetailTab === 'strategy' && (
-                    <section className="bg-gradient-to-br from-[#1a1a2e] to-[#16213e] rounded-2xl p-6 text-white shadow-xl h-full flex flex-col">
-                          <div className="flex justify-between items-center mb-4">
-                            <h4 className="text-sm font-black text-[#d4af37] flex items-center gap-2">
-                               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
-                               التحليل الاستراتيجي (AI)
-                            </h4>
-                            <button onClick={handleAnalyze} disabled={isAnalyzing} className="text-[10px] bg-white/10 hover:bg-white/20 px-3 py-1 rounded-lg transition-colors">
-                              {isAnalyzing ? 'جاري التحليل...' : 'تحديث التحليل'}
-                            </button>
-                          </div>
-                          <div className="flex-1 overflow-y-auto custom-scroll pr-2">
-                            {analysisResult ? (
-                                <div className="prose prose-invert prose-sm text-xs leading-relaxed opacity-90" dangerouslySetInnerHTML={{ __html: analysisResult }} />
-                            ) : (
-                                <div className="flex flex-col items-center justify-center h-full text-slate-400 min-h-[200px]">
-                                {isAnalyzing ? (
-                                    <div className="flex flex-col items-center gap-4">
-                                        <div className="w-8 h-8 border-2 border-[#d4af37] border-t-transparent rounded-full animate-spin"></div>
-                                        <p className="text-xs">جاري دراسة ملف القضية...</p>
-                                    </div>
-                                ) : (
-                                    <p className="text-xs">اضغط على زر التحديث للحصول على رؤية ذكية لموقف القضية.</p>
-                                )}
-                                </div>
-                            )}
-                          </div>
-                    </section>
+                  <section className="bg-slate-900 rounded-3xl p-6 text-white shadow-2xl min-h-[300px] flex flex-col">
+                    <h4 className="text-amber-500 text-xs font-black uppercase tracking-widest mb-4 flex items-center gap-2">
+                       <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" /></svg>
+                       نصيحة "حُلم" الذكية للمستشار
+                    </h4>
+                    {isAnalyzing ? (
+                      <div className="flex-1 flex flex-col items-center justify-center gap-4 text-slate-400">
+                         <div className="w-10 h-10 border-4 border-amber-500 border-t-transparent rounded-full animate-spin"></div>
+                         <p className="text-[10px] animate-pulse">جاري دراسة أوراق القضية وتحليل الثغرات...</p>
+                      </div>
+                    ) : (
+                      <div className="prose prose-invert prose-sm text-xs leading-relaxed opacity-90" dangerouslySetInnerHTML={{ __html: analysisResult || 'لم يتم إجراء تحليل بعد.' }} />
+                    )}
+                  </section>
                 )}
 
-                {/* Comments & Activities Tabs - Same as before */}
                 {activeDetailTab === 'comments' && (
                   <div className="flex flex-col h-full">
                      <div className="flex-1 space-y-4 mb-4">
-                        {selectedCase.comments && selectedCase.comments.length > 0 ? (
-                          selectedCase.comments.map(comment => (
-                            <div key={comment.id} className={`p-4 rounded-2xl text-xs ${comment.authorRole === 'admin' || comment.authorRole === 'staff' ? 'bg-amber-50 mr-8 rounded-tr-none' : 'bg-slate-100 ml-8 rounded-tl-none'}`}>
-                              <div className="flex justify-between items-center mb-2">
-                                <span className="font-black text-slate-600">{comment.authorName}</span>
-                                <span className="text-[10px] text-slate-400">{comment.date}</span>
-                              </div>
-                              <p className="text-slate-700 leading-relaxed">{comment.text}</p>
+                        {selectedCase.comments?.map(comment => (
+                            <div key={comment.id} className="p-4 rounded-2xl bg-slate-50 text-xs border border-slate-100">
+                               <div className="flex justify-between items-center mb-1">
+                                  <span className="font-black">{comment.authorName}</span>
+                                  <span className="text-[10px] text-slate-400">{comment.date}</span>
+                               </div>
+                               <p>{comment.text}</p>
                             </div>
-                          ))
-                        ) : (
-                          <div className="text-center py-10 bg-slate-50 rounded-3xl">
-                             <p className="text-slate-400 text-xs">لا توجد ملاحظات مسجلة.</p>
-                          </div>
-                        )}
+                        ))}
                      </div>
-                     <div className="flex gap-2 bg-white p-2 border border-slate-100 rounded-2xl shadow-sm">
-                        <input 
-                           className="flex-1 bg-transparent px-4 py-2 text-xs outline-none" 
-                           placeholder="كتب ملاحظة..." 
-                           value={commentInput}
-                           onChange={(e) => setCommentInput(e.target.value)}
-                           onKeyDown={(e) => e.key === 'Enter' && handleAddComment()}
-                        />
-                        <button 
-                          onClick={handleAddComment}
-                          className="bg-[#1a1a2e] text-white px-4 py-2 rounded-xl text-xs font-bold"
-                        >إرسال</button>
+                     <div className="flex gap-2">
+                        <input className="flex-1 bg-slate-50 px-4 py-2 text-xs rounded-xl outline-none" placeholder="اكتب تعليقاً..." value={commentInput} onChange={e => setCommentInput(e.target.value)} />
+                        <button onClick={handleAddComment} className="bg-[#1a1a2e] text-white px-4 py-2 rounded-xl text-xs font-bold">إرسال</button>
                      </div>
                   </div>
                 )}
 
                 {activeDetailTab === 'activities' && (
-                  <div className="relative pl-4 space-y-8 before:absolute before:left-[19px] before:top-2 before:bottom-2 before:w-[2px] before:bg-slate-100">
-                      {selectedCase.activities && selectedCase.activities.length > 0 ? (
-                        selectedCase.activities.map(activity => (
-                           <div key={activity.id} className="relative flex gap-4 items-start">
-                              <div className="z-10 bg-white p-1 rounded-full">
-                                {getActivityIcon(activity.type)}
-                              </div>
-                              <div className="flex-1 bg-slate-50 p-4 rounded-2xl border border-slate-100 hover:shadow-md transition-shadow">
-                                 <div className="flex justify-between items-start mb-1">
-                                    <span className="text-[10px] font-black text-slate-500">{activity.userName}</span>
-                                    <span className="text-[10px] text-slate-400">{activity.timestamp}</span>
-                                 </div>
-                                 <p className="text-xs font-bold text-slate-700">{activity.description}</p>
-                              </div>
+                  <div className="space-y-6 relative pl-4 border-l-2 border-slate-100 ml-4">
+                     {selectedCase.activities?.map(activity => (
+                        <div key={activity.id} className="relative flex gap-4 items-start">
+                           <div className="absolute -right-[33px]">{getActivityIcon(activity.type)}</div>
+                           <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 w-full">
+                              <p className="text-xs font-bold">{activity.description}</p>
+                              <span className="text-[9px] text-slate-400">{activity.timestamp}</span>
                            </div>
-                        ))
-                      ) : (
-                        <p className="text-center text-xs text-slate-400 py-10">لا يوجد سجل نشاطات لهذا الملف.</p>
-                      )}
+                        </div>
+                     ))}
                   </div>
                 )}
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Add Modal Simplified for integration */}
+      {showAddModal && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white w-full max-w-xl rounded-[2.5rem] p-10 shadow-2xl">
+            <h3 className="text-2xl font-black mb-8">تسجيل بلاغ/قضية جديدة</h3>
+            <form onSubmit={handleAddCase} className="grid grid-cols-2 gap-6">
+              <div className="col-span-2">
+                <label className="block text-xs font-bold text-slate-400 mb-2">عنوان القضية</label>
+                <input required className="w-full border border-slate-200 rounded-xl px-5 py-3 outline-none focus:border-[#d4af37]" onChange={e => setNewCaseForm({...newCaseForm, title: e.target.value})} />
+              </div>
+              <div className="col-span-1">
+                <label className="block text-xs font-bold text-slate-400 mb-2">التصنيف</label>
+                <select className="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm" onChange={e => setNewCaseForm({...newCaseForm, category: e.target.value as CaseCategory})}>
+                  {Object.values(CaseCategory).map(cat => <option key={cat} value={cat}>{cat}</option>)}
+                </select>
+              </div>
+              <div className="col-span-1">
+                <label className="block text-xs font-bold text-slate-400 mb-2">الموكل</label>
+                <select className="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm" onChange={e => setNewCaseForm({...newCaseForm, clientId: e.target.value})}>
+                  <option value="">اختر الموكل...</option>
+                  {clients.map(cl => <option key={cl.id} value={cl.id}>{cl.name}</option>)}
+                </select>
+              </div>
+              <div className="col-span-2 flex gap-4 mt-4">
+                <button type="button" onClick={() => setShowAddModal(false)} className="flex-1 font-bold text-slate-400">إلغاء</button>
+                <button type="submit" className="flex-1 bg-[#1a1a2e] text-white py-4 rounded-2xl font-black shadow-xl">تسجيل القضية</button>
+              </div>
+            </form>
           </div>
         </div>
       )}

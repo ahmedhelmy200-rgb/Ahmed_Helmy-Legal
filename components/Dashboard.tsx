@@ -1,6 +1,5 @@
 
 import React from 'react';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { LegalCase, Client, Invoice, CaseStatus, UserRole } from '../types';
 import { ICONS } from '../constants';
 
@@ -9,153 +8,89 @@ interface DashboardProps {
   clients: Client[];
   invoices: Invoice[];
   userRole: UserRole;
-  webLeads: any[];
   onNavigate: (tab: string) => void;
   onLogout: () => void;
+  logo?: string;
 }
 
-const data = [
-  { name: 'يناير', cases: 5 },
-  { name: 'فبراير', cases: 8 },
-  { name: 'مارس', cases: 12 },
-  { name: 'أبريل', cases: 15 },
-  { name: 'مايو', cases: 20 },
-  { name: 'يونيو', cases: 25 },
-];
-
-const MenuCard = ({ title, icon: Icon, onClick, color }: { title: string, icon: any, onClick: () => void, color: string }) => (
-  <button 
-    onClick={onClick}
-    className="bg-white p-8 rounded-[3rem] shadow-lg border border-slate-100 hover:shadow-2xl hover:-translate-y-2 transition-all duration-300 flex flex-col items-center justify-center gap-6 group w-full h-full min-h-[220px]"
-  >
-    <div className={`w-20 h-20 rounded-3xl ${color} flex items-center justify-center shadow-inner group-hover:scale-110 transition-transform duration-500`}>
-       <Icon className="w-10 h-10" />
-    </div>
-    <h3 className="text-xl font-black text-slate-800 group-hover:text-[#d4af37] transition-colors">{title}</h3>
-  </button>
-);
-
-const StatCard = ({ title, value, color }: { title: string, value: string | number, color: string }) => (
-  <div className={`p-6 rounded-[2.5rem] border border-white/10 ${color} shadow-lg text-white`}>
-    <p className="text-[10px] font-black uppercase tracking-widest opacity-80 mb-2">{title}</p>
-    <h3 className="text-3xl font-black">{value}</h3>
-  </div>
-);
-
-const Dashboard: React.FC<DashboardProps> = ({ cases, clients, invoices, userRole, webLeads, onNavigate, onLogout }) => {
-  const activeCases = cases.filter(c => c.status !== CaseStatus.CLOSED && !c.isArchived).length;
-  const totalRevenue = invoices.filter(i => i.status === 'Paid').reduce((sum, i) => sum + i.amount, 0);
-
-  const menuItems = [
-    { id: 'cases', label: (userRole === 'admin' || userRole === 'staff') ? 'إدارة القضايا' : 'ملفات القضايا', icon: ICONS.Cases, roles: ['admin', 'staff', 'client'], color: 'bg-blue-50 text-blue-600' },
-    { id: 'clients', label: 'إدارة الموكلين', icon: ICONS.Clients, roles: ['admin', 'staff'], color: 'bg-purple-50 text-purple-600' },
-    { id: 'accounting', label: (userRole === 'admin' || userRole === 'staff') ? 'الشؤون المالية' : 'المدفوعات', icon: () => (
-        <svg xmlns="http://www.w3.org/2000/svg" className="w-full h-full p-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-        </svg>
-      ), roles: ['admin', 'staff', 'client'], color: 'bg-green-50 text-green-600' },
-    { id: 'ai-consultant', label: 'المستشار الذكي', icon: ICONS.AI, roles: ['admin', 'staff', 'visitor', 'client'], color: 'bg-amber-50 text-amber-600' },
-    { id: 'laws', label: 'مكتبة القوانين', icon: ICONS.Law, roles: ['admin', 'staff', 'visitor', 'client'], color: 'bg-slate-50 text-slate-600' },
-  ];
-
-  const filteredItems = menuItems.filter(item => item.roles.includes(userRole));
+const Dashboard: React.FC<DashboardProps> = ({ cases, clients, invoices, userRole, onNavigate, onLogout, logo }) => {
+  const activeCases = cases.filter(c => c.status !== CaseStatus.WON && c.status !== CaseStatus.LOST).length;
 
   return (
-    <div className="min-h-screen bg-[#f8fafc] flex flex-col font-sans">
-      {/* Header Section with HELM Smart Branding */}
-      <div className="bg-[#020617] text-white p-10 lg:p-14 rounded-b-[5rem] shadow-2xl relative overflow-hidden">
-        <div className="absolute top-0 right-0 w-[700px] h-[700px] bg-[#d4af37] opacity-10 rounded-full -mr-32 -mt-32 blur-[120px] pointer-events-none"></div>
+    <div className="min-h-screen bg-white flex flex-col font-sans">
+      {/* Premium Hero Header */}
+      <div className="bg-slate-50 p-12 lg:p-16 rounded-b-[4rem] border-b border-slate-100 relative overflow-hidden">
+        <div className="absolute top-0 right-0 w-96 h-96 bg-amber-500/5 rounded-full -mr-20 -mt-20 blur-3xl pointer-events-none"></div>
         
-        <div className="relative z-10 flex flex-col md:flex-row justify-between items-center gap-10">
-           <div className="flex items-center gap-10 text-right">
-              <div className="w-28 h-28 shrink-0">
-                 <ICONS.Logo />
+        <div className="relative z-10 flex flex-col lg:flex-row justify-between items-center gap-12">
+           <div className="flex items-center gap-12">
+              <div className="w-24 h-24 shrink-0 p-4 bg-white rounded-3xl shadow-xl shadow-slate-200 border border-slate-50 overflow-hidden">
+                 <img src={logo || "https://img.icons8.com/fluency/240/scales.png"} className="w-full h-full object-contain" />
               </div>
               <div>
-                 <h1 className="text-4xl lg:text-5xl font-black text-[#d4af37] mb-3 tracking-tighter">
-                    {userRole === 'staff' ? 'المستشارة سمر أسامة' : 'أحمد حلمي للاستشارات'}
-                 </h1>
-                 <p className="text-slate-400 text-sm font-black tracking-[0.2em] uppercase">
-                    {userRole === 'staff' ? 'المدير العام لبرنامج حُلم الذكي' : 'نظام حلم الذكي لإدارة مكاتب المحاماة المعتمد'}
-                 </p>
+                 <h1 className="text-4xl font-black text-slate-800 tracking-tighter mb-2">نظام حلم الذكي <span className="text-[#d4af37]">3.0</span></h1>
+                 <p className="text-slate-400 text-[10px] font-black tracking-[0.4em] uppercase">مركز المستشار أحمد حلمي للاستشارات القانونية</p>
               </div>
            </div>
            
-           <div className="flex items-center gap-5">
+           <div className="flex items-center gap-6">
              <a 
                href="https://ahmed-helmy-legal.vercel.app/" 
                target="_blank" 
                rel="noopener noreferrer"
-               className="bg-[#d4af37]/10 hover:bg-[#d4af37] hover:text-[#020617] text-[#d4af37] border border-[#d4af37]/40 px-8 py-4 rounded-2xl font-black text-xs transition-all duration-300 flex items-center gap-3 shadow-2xl backdrop-blur-md"
+               className="bg-white border border-slate-200 text-slate-700 px-8 py-4 rounded-[1.5rem] font-black text-[10px] transition-all hover:border-[#d4af37] hover:text-[#d4af37] shadow-sm flex items-center gap-3"
              >
-               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9h18" /></svg>
                الموقع الرسمي للمكتب
              </a>
-
-             <button 
-               onClick={onLogout}
-               className="bg-red-950/40 hover:bg-red-600 text-white px-8 py-4 rounded-2xl font-black text-xs transition-all flex items-center gap-2 border border-red-500/30 shadow-md"
-             >
-               خروج من النظام
-             </button>
+             <button onClick={() => onNavigate('settings')} className="bg-slate-800 text-white px-8 py-4 rounded-[1.5rem] font-black text-[10px] hover:bg-[#d4af37] transition-all shadow-xl shadow-slate-200">الإعدادات</button>
            </div>
         </div>
 
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-8 mt-16">
-           <StatCard title="القضايا قيد المتابعة" value={activeCases} color="bg-blue-600 shadow-blue-500/30" />
-           <StatCard title="إجمالي الموكلين" value={clients.length} color="bg-purple-600 shadow-purple-500/30" />
-           <StatCard title="إجمالي الإيرادات" value={`${totalRevenue.toLocaleString()} د.إ`} color="bg-green-600 shadow-green-500/30" />
-           <StatCard title="طلبات الموقع" value={webLeads.length} color="bg-amber-600 shadow-amber-500/30" />
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-8 mt-16 animate-slide-up">
+           <div className="bg-white p-8 rounded-[2rem] border border-slate-100 shadow-sm">
+              <p className="text-[10px] font-black uppercase text-slate-400 mb-2 tracking-widest">قضايا متداولة</p>
+              <h3 className="text-3xl font-black text-slate-800">{activeCases}</h3>
+           </div>
+           <div className="bg-white p-8 rounded-[2rem] border border-slate-100 shadow-sm">
+              <p className="text-[10px] font-black uppercase text-slate-400 mb-2 tracking-widest">الموكلين</p>
+              <h3 className="text-3xl font-black text-slate-800">{clients.length}</h3>
+           </div>
+           <div className="bg-white p-8 rounded-[2rem] border border-slate-100 shadow-sm">
+              <p className="text-[10px] font-black uppercase text-slate-400 mb-2 tracking-widest">إجمالي الإيرادات</p>
+              <h3 className="text-3xl font-black text-[#d4af37]">{invoices.filter(i => i.status === 'Paid').reduce((s,i) => s + i.amount, 0).toLocaleString()} <span className="text-xs">د.إ</span></h3>
+           </div>
+           <div className="bg-[#d4af37] p-8 rounded-[2rem] text-white shadow-xl shadow-amber-500/20">
+              <p className="text-[10px] font-black uppercase text-white/70 mb-2 tracking-widest">الحالة الرقمية</p>
+              <h3 className="text-xl font-black">جاهز للعمل <span className="animate-pulse">●</span></h3>
+           </div>
         </div>
       </div>
 
-      <div className="flex-1 p-8 lg:p-12 -mt-16 relative z-20">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8 mb-16 animate-in slide-in-from-bottom-12 duration-700">
-           {filteredItems.map(item => (
-             <MenuCard key={item.id} title={item.label} icon={item.icon} onClick={() => onNavigate(item.id)} color={item.color} />
-           ))}
+      <div className="flex-1 p-12 lg:p-16">
+        <h4 className="text-xs font-black text-slate-400 uppercase tracking-[0.3em] mb-10 flex items-center gap-4">
+           نظام الوصول السريع 
+           <span className="h-px flex-1 bg-slate-100"></span>
+        </h4>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-10">
+          <button onClick={() => onNavigate('cases')} className="premium-card p-10 rounded-[3rem] flex flex-col items-center gap-8 group">
+            <div className="w-20 h-20 bg-blue-50 text-blue-600 rounded-3xl flex items-center justify-center group-hover:scale-110 transition-all"><ICONS.Cases className="w-10 h-10" /></div>
+            <span className="font-black text-slate-800 group-hover:text-[#d4af37] transition-colors">إدارة القضايا</span>
+          </button>
+          <button onClick={() => onNavigate('clients')} className="premium-card p-10 rounded-[3rem] flex flex-col items-center gap-8 group">
+            <div className="w-20 h-20 bg-purple-50 text-purple-600 rounded-3xl flex items-center justify-center group-hover:scale-110 transition-all"><ICONS.Clients className="w-10 h-10" /></div>
+            <span className="font-black text-slate-800 group-hover:text-[#d4af37] transition-colors">الموكلين</span>
+          </button>
+          <button onClick={() => onNavigate('accounting')} className="premium-card p-10 rounded-[3rem] flex flex-col items-center gap-8 group">
+            <div className="w-20 h-20 bg-green-50 text-green-600 rounded-3xl flex items-center justify-center group-hover:scale-110 transition-all">
+              <svg className="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+            </div>
+            <span className="font-black text-slate-800 group-hover:text-[#d4af37] transition-colors">الشؤون المالية</span>
+          </button>
+          <button onClick={() => onNavigate('ai-consultant')} className="bg-[#fdfbf7] p-10 rounded-[3rem] border border-amber-100 shadow-xl shadow-amber-500/5 flex flex-col items-center gap-8 group hover:-translate-y-2 transition-all">
+            <div className="w-20 h-20 bg-amber-50 text-[#d4af37] rounded-3xl flex items-center justify-center group-hover:scale-110 transition-all"><ICONS.AI className="w-10 h-10" /></div>
+            <span className="font-black text-[#d4af37]">المستشار الذكي</span>
+          </button>
         </div>
-
-        {(userRole === 'admin' || userRole === 'staff') && (
-           <div className="grid grid-cols-1 lg:grid-cols-3 gap-12">
-             <div className="lg:col-span-2 bg-white p-12 rounded-[4rem] shadow-sm border border-slate-100">
-               <h3 className="text-2xl font-black text-slate-800 mb-12 flex items-center gap-4">
-                  <span className="w-2.5 h-10 bg-[#d4af37] rounded-full"></span>
-                  إحصائيات العمل - نظام حُلم الذكي
-               </h3>
-               <div className="h-80 w-full">
-                 <ResponsiveContainer width="100%" height="100%">
-                   <BarChart data={data}>
-                     <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                     <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fill: '#94a3b8', fontSize: 12, fontWeight: 700}} />
-                     <YAxis axisLine={false} tickLine={false} tick={{fill: '#94a3b8', fontSize: 12, fontWeight: 700}} />
-                     <Tooltip contentStyle={{ borderRadius: '24px', border: 'none', boxShadow: '0 25px 30px -5px rgba(0,0,0,0.1)' }} cursor={{fill: '#f8fafc'}} />
-                     <Bar dataKey="cases" fill="#020617" radius={[15, 15, 0, 0]} barSize={55} />
-                   </BarChart>
-                 </ResponsiveContainer>
-               </div>
-             </div>
-
-             <div className="bg-white p-12 rounded-[4rem] shadow-sm border border-slate-100">
-                <h3 className="text-2xl font-black text-slate-800 mb-12 flex items-center gap-4 text-right">
-                   <span className="w-2.5 h-10 bg-amber-500 rounded-full"></span>
-                   تواصل الموكلين الجدد
-                </h3>
-                <div className="space-y-6">
-                   {webLeads.map(lead => (
-                     <div key={lead.id} className="p-6 rounded-[2rem] bg-slate-50 border border-slate-100 flex justify-between items-center group hover:bg-[#020617] hover:text-white transition-all duration-500 cursor-pointer shadow-sm text-right">
-                        <div>
-                           <p className="text-[15px] font-black group-hover:text-white transition-colors">{lead.name}</p>
-                           <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-1">{lead.type}</p>
-                        </div>
-                        <span className="text-[10px] font-black bg-white group-hover:bg-[#d4af37] group-hover:text-[#020617] px-4 py-2 rounded-full shadow-md transition-all">{lead.status}</span>
-                     </div>
-                   ))}
-                   <a href="https://ahmed-helmy-legal.vercel.app/contact" target="_blank" rel="noopener noreferrer" className="block w-full text-center mt-10 text-[#d4af37] font-black text-xs hover:underline uppercase tracking-[0.2em]">إدارة طلبات التواصل الرسمية</a>
-                </div>
-             </div>
-           </div>
-        )}
       </div>
     </div>
   );

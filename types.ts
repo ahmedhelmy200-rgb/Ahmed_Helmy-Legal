@@ -1,69 +1,47 @@
 
 export type UserRole = 'admin' | 'visitor' | 'client' | 'staff';
+export type AppLanguage = 'ar' | 'en';
 
 export enum CaseStatus {
-  ACTIVE = 'نشط',
-  PENDING = 'قيد الانتظار',
-  CLOSED = 'مغلق',
-  APPEAL = 'استئناف',
+  WON = 'ربح',
+  PREP = 'قيد التحضير',
+  ACTIVE = 'متداولة',
+  LOST = 'خسارة',
+  ARCHIVED = 'مؤرشف',
   JUDGMENT = 'حكم',
-  LITIGATION = 'مرافعة',
-  ARCHIVED = 'مؤرشف'
+  APPEAL = 'استئناف',
+  CLOSED = 'مغلق',
+  LITIGATION = 'تقاضي',
+  PENDING = 'معلق'
 }
 
 export enum CaseCategory {
-  CIVIL = 'مدني كلي/جزئي',
-  CRIMINAL = 'جزائي/جنح',
+  CIVIL = 'مدني',
+  CRIMINAL = 'جزائي',
   LABOR = 'عمالي',
   COMMERCIAL = 'تجاري',
   FAMILY = 'أحوال شخصية',
-  RENTAL = 'منازعات إيجارية',
-  ADMINISTRATIVE = 'قضاء إداري',
+  RENTAL = 'إيجاري',
+  ADMINISTRATIVE = 'إداري',
   EXECUTION = 'تنفيذ',
-  // Added ARCHIVED to fix CaseCategory.ARCHIVED error
-  ARCHIVED = 'أرشفة'
+  ARCHIVED = 'أرشيف'
 }
 
-export enum ExpenseCategory {
-  OFFICE = 'مصاريف المكتب',
-  BROKER = 'عمولة وسطاء',
-  STAFF = 'مصاريف موظفين',
-  GOV = 'رسوم حكومية',
-  POA = 'رسوم وكالة',
-  CASE = 'مصاريف قضايا'
+export interface GroundingLink {
+  title: string;
+  uri: string;
 }
 
-export interface Expense {
-  id: string;
-  category: ExpenseCategory;
-  amount: number;
-  date: string;
-  description: string;
-  caseId?: string; // اختياري إذا كانت مرتبطة بقضية
+export interface ChatMessage {
+  role: 'user' | 'ai';
+  text: string;
+  image?: string;
+  video?: string;
+  links?: GroundingLink[];
+  isAudio?: boolean;
 }
 
-export interface PaymentReceipt {
-  id: string;
-  receiptNumber: string;
-  date: string;
-  amount: number;
-  payerName: string; // اسم العميل أو الدافع
-  clientId?: string;
-  caseId?: string;
-  method: 'Cash' | 'Check' | 'Bank Transfer';
-  checkNumber?: string; // رقم الشيك أو التحويل
-  description: string;
-}
-
-export interface CaseActivity {
-  id: string;
-  type: 'status_change' | 'document_added' | 'comment_added' | 'info_update';
-  description: string;
-  userRole: UserRole;
-  userName: string;
-  timestamp: string;
-}
-
+// Added missing CaseComment interface
 export interface CaseComment {
   id: string;
   authorRole: UserRole;
@@ -72,49 +50,36 @@ export interface CaseComment {
   date: string;
 }
 
-export interface CaseDocument {
+// Added missing CaseActivity interface
+export interface CaseActivity {
   id: string;
-  name: string;
-  type: 'EmiratesID' | 'Passport' | 'Photo' | 'Judgment' | 'Support' | 'Other';
-  uploadDate: string;
-  fileUrl?: string;
+  type: 'status_change' | 'comment_added' | 'info_update';
+  description: string;
+  userRole: UserRole;
+  userName: string;
+  timestamp: string;
 }
 
 export interface LegalCase {
   id: string;
   caseNumber: string;
   title: string;
-  category: CaseCategory; // تصنيف رئيسي
-  subCategory?: string; // تصنيف فرعي دقيق
+  category: CaseCategory;
+  subCategory?: string; // Added subCategory field
   clientId: string;
   clientName: string;
   opponentName: string;
   court: string;
   status: CaseStatus;
-  nextHearingDate: string;
-  assignedLawyer: string;
-  createdAt: string;
-  documents: CaseDocument[];
-  comments: CaseComment[];
-  activities: CaseActivity[];
   totalFee: number;
   paidAmount: number;
+  createdAt: string;
+  nextHearingDate?: string; // Added nextHearingDate field
   isArchived: boolean;
-}
-
-export interface Invoice {
-  id: string;
-  invoiceNumber: string;
-  caseId: string;
-  caseTitle: string;
-  clientId: string;
-  clientName: string;
-  amount: number;
-  date: string;
-  dueDate: string;
-  status: 'Paid' | 'Unpaid' | 'Partial';
-  description: string;
-  payments: any[];
+  documents: string[];
+  comments?: CaseComment[]; // Updated to use CaseComment interface
+  activities?: CaseActivity[]; // Updated to use CaseActivity interface
+  assignedLawyer?: string; // Added assignedLawyer field
 }
 
 export interface Client {
@@ -123,12 +88,59 @@ export interface Client {
   email: string;
   phone: string;
   emiratesId: string;
-  address?: string;
+  address: string;
   type: 'Individual' | 'Corporate';
-  brokerName?: string; // اسم الوسيط
-  commissionAmount?: number; // عمولة الوسيط
-  documents: CaseDocument[]; // مستندات الموكل (هوية، جواز...)
-  totalCases: number;
   createdAt: string;
-  profileImage?: string; // صورة الملف الشخصي المخصصة
+  documents: string[];
+  totalCases?: number; // Added totalCases field
+}
+
+// Added missing Invoice interface
+export interface Invoice {
+  id: string;
+  clientId: string;
+  amount: number;
+  status: 'Paid' | 'Unpaid';
+  date: string;
+  description?: string;
+}
+
+// Added missing ExpenseCategory enum
+export enum ExpenseCategory {
+  OFFICE = 'مكتب',
+  PERSONAL = 'شخصي'
+}
+
+// Added missing Expense interface
+export interface Expense {
+  id: string;
+  amount: number;
+  category: ExpenseCategory;
+  description: string;
+  date: string;
+}
+
+// Added missing PaymentReceipt interface
+export interface PaymentReceipt {
+  id: string;
+  clientId: string;
+  amount: number;
+  date: string;
+}
+
+// Added missing FutureDebt interface
+export interface FutureDebt {
+  id: string;
+  clientName: string;
+  amount: number;
+  dueDate: string;
+  description: string;
+}
+
+// Added missing SystemSettings interface
+export interface SystemSettings {
+  logo?: string;
+  stamp?: string;
+  language: AppLanguage;
+  primaryColor: string;
 }

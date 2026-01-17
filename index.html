@@ -1,9 +1,10 @@
+
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>نظام حلم الذكي - مكتب المستشار أحمد حلمي للاستشارات القانونية</title>
+    <title>نظام حلم الذكي 3.5 - مكتب المستشار أحمد حلمي</title>
     <link rel="icon" type="image/jpeg" href="https://img.icons8.com/fluency/240/scales.png">
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
@@ -11,30 +12,39 @@
         body {
             font-family: 'Cairo', sans-serif;
             background-color: #f8fafc;
-            color: #0f172a;
+            color: #1e293b;
+            overflow-x: hidden;
         }
         .custom-scroll::-webkit-scrollbar {
-            width: 8px;
+            width: 5px;
         }
         .custom-scroll::-webkit-scrollbar-track {
-            background: transparent;
+            background: #f1f5f9;
         }
         .custom-scroll::-webkit-scrollbar-thumb {
             background: #cbd5e1;
             border-radius: 10px;
-            border: 2px solid transparent;
-            background-clip: content-box;
         }
         .custom-scroll::-webkit-scrollbar-thumb:hover {
-            background: #94a3b8;
-            background-clip: content-box;
+            background: #d4af37;
         }
-        .page-transition {
-            animation: fadeIn 0.4s ease-out;
+        .premium-shadow {
+            box-shadow: 0 10px 40px -10px rgba(0,0,0,0.04);
+        }
+        .gold-gradient {
+            background: linear-gradient(135deg, #d4af37 0%, #fcd34d 100%);
+        }
+        .glass-light {
+            background: rgba(255, 255, 255, 0.8);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.3);
         }
         @keyframes fadeIn {
             from { opacity: 0; transform: translateY(10px); }
             to { opacity: 1; transform: translateY(0); }
+        }
+        .animate-fade-in {
+            animation: fadeIn 0.4s ease-out forwards;
         }
     </style>
 <script type="importmap">
